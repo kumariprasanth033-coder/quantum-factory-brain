@@ -32,8 +32,8 @@ try {
     if (!$user || !password_verify($password, $user['password'])) {
         // Fallback for demo accounts if user password was updated or initialized
         $isDemo = (
-            ($email === 'admin@qfactory.local' && $password === 'password123') ||
-            ($email === 'manager@qfactory.local' && $password === 'password123') ||
+            (($email === 'admin@qfactory.local' || $email === 'admin@quantumfactory.local') && ($password === 'password123' || $password === 'admin123')) ||
+            (($email === 'manager@qfactory.local' || $email === 'manager@quantumfactory.local') && ($password === 'password123' || $password === 'manager123')) ||
             ($email === 'operator@qfactory.local' && $password === 'password123')
         );
 

@@ -2,15 +2,19 @@ import {
   DashboardStats, 
   Machine, 
   Job, 
+  JobOperation,
   Schedule, 
   AlertItem, 
   BottleneckCandidate, 
   MachineUtilizationData, 
   ScheduleComparisonResult,
-  SchedulingMode
+  SchedulingMode,
+  FactoryProfile,
+  FactoryMode,
+  SystemHealthReport
 } from '../types';
 
-// Default to same-origin /api. Can be switched in Settings to http://localhost/quantum_factory_brain/backend/api
+// Same-origin relative /api default
 const getApiBaseUrl = (): string => {
   return localStorage.getItem('qfb_api_base_url') || '/api';
 };
@@ -23,14 +27,25 @@ export const resetApiBaseUrl = () => {
   localStorage.removeItem('qfb_api_base_url');
 };
 
+export const getStoredFactoryMode = (): FactoryMode => {
+  return (localStorage.getItem('qfb_factory_mode') as FactoryMode) || 'demo';
+};
+
+export const setStoredFactoryMode = (mode: FactoryMode) => {
+  localStorage.setItem('qfb_factory_mode', mode);
+};
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const baseUrl = getApiBaseUrl().replace(/\/+$/, '');
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${baseUrl}${cleanEndpoint}`;
 
+  const currentMode = getStoredFactoryMode();
+
   const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
+    'X-Factory-Mode': currentMode,
   };
 
   const config: RequestInit = {
@@ -49,7 +64,6 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       const errJson = await response.json();
       if (errJson.message) errorMsg = errJson.message;
     } catch {
-      // fallback to status text
       errorMsg = response.statusText || errorMsg;
     }
     throw new Error(errorMsg);
@@ -60,13 +74,29 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw new Error(json.message || 'API request failed');
   }
 
-  return json.data as T;
+  return json.data !== undefined ? (json.data as T) : (json as unknown as T);
 }
 
 export const api = {
+  // System Health
+  getHealth: () =>
+    request<{
+      success: boolean;
+      status: string;
+      database: string;
+      app_name: string;
+      version: string;
+      timestamp: string;
+      active_mode: string;
+      factory_name?: string;
+    }>('/health'),
+
+  runSystemHealthCheck: () =>
+    request<SystemHealthReport>('/system/health-check'),
+
   // Auth
   login: (credentials: { email: string; password: string }) =>
-    request<{ user: { id: number; name: string; email: string; role: 'admin' | 'manager' | 'operator' } }>('/auth/login', {
+    request<{ user: { id: number; name: string; email: string; role: 'admin' | 'manager' | 'operator' }; token?: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     }),
@@ -75,9 +105,27 @@ export const api = {
   getSession: () =>
     request<{ authenticated: boolean; user: any }>('/auth/session'),
 
+  // Factory Multi-Tenancy & Profile
+  getFactoryMode: () =>
+    request<{ active_mode: FactoryMode; profile: FactoryProfile; machine_count: number; job_count: number }>('/factory/mode'),
+  setFactoryMode: (mode: FactoryMode) => {
+    setStoredFactoryMode(mode);
+    return request<{ active_mode: FactoryMode; profile: FactoryProfile }>('/factory/mode', {
+      method: 'POST',
+      body: JSON.stringify({ mode }),
+    });
+  },
+  getFactoryProfile: () =>
+    request<FactoryProfile>('/factory/profile'),
+  updateFactoryProfile: (profile: Partial<FactoryProfile>) =>
+    request<FactoryProfile>('/factory/profile', {
+      method: 'POST',
+      body: JSON.stringify(profile),
+    }),
+
   // Dashboard
   getDashboardStats: () =>
-    request<DashboardStats>('/dashboard/stats'),
+    request<DashboardStats & { mode?: string; empty_state?: boolean; setup_checklist?: any; factory_profile?: FactoryProfile }>('/dashboard/stats'),
 
   // Machines
   getMachines: (params?: { status?: string; search?: string }) => {
@@ -135,6 +183,36 @@ export const api = {
       body: JSON.stringify({ id }),
     }),
 
+  // Operations CRUD
+  createOperation: (data: {
+    job_id: number;
+    operation_number?: string;
+    operation_name: string;
+    processing_time: number;
+    sequence_number?: number;
+    priority?: string;
+    eligible_machines?: any[];
+  }) =>
+    request<JobOperation>('/operations/create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateOperation: (data: Partial<JobOperation> & { id: number }) =>
+    request<JobOperation>('/operations/update', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  deleteOperation: (id: number) =>
+    request<null>('/operations/delete', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    }),
+  assignOperationMachines: (operation_id: number, eligible_machines: any[]) =>
+    request<JobOperation>('/operations/assign-machines', {
+      method: 'POST',
+      body: JSON.stringify({ operation_id, eligible_machines }),
+    }),
+
   // Scheduling
   generateSchedule: (mode: SchedulingMode = 'quantum_inspired', weights?: Record<string, number>) =>
     request<Schedule>('/scheduling/generate', {
@@ -177,15 +255,13 @@ export const api = {
       body: JSON.stringify({ id: id || 0 }),
     }),
 
-  // Demo Seed
+  // Demo Seed & Reset
   loadDemoFactory: () =>
-    request<{ total_machines: number; total_jobs: number; initial_makespan: number }>('/demo/seed', {
-      method: 'POST',
-    }),
+    request<any>('/demo/seed', { method: 'POST' }),
   seedDemoData: () =>
-    request<{ total_machines: number; total_jobs: number; initial_makespan: number }>('/demo/seed', {
-      method: 'POST',
-    }),
+    request<any>('/demo/seed', { method: 'POST' }),
+  resetDemoData: () =>
+    request<any>('/demo/reset', { method: 'POST' }),
 
   // Export URLs & Settings Base URLs
   getBaseUrl: () => getApiBaseUrl(),

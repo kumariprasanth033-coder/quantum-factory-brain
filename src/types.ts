@@ -199,3 +199,54 @@ export interface ScheduleComparisonResult {
   };
   disclaimer: string;
 }
+
+export type FactoryMode = 'demo' | 'custom';
+
+export interface FactoryProfile {
+  id?: number;
+  factory_code: string;
+  factory_name: string;
+  industry: string;
+  location: string;
+  contact_email: string;
+  working_hours: string;
+  time_zone: string;
+  is_demo?: boolean;
+}
+
+export interface SetupChecklist {
+  factory_profile: boolean;
+  machines: boolean;
+  jobs: boolean;
+  operations: boolean;
+  eligible_machines: boolean;
+  first_schedule: boolean;
+  completed_count: number;
+  total_count: number;
+}
+
+export interface SystemHealthTestResult {
+  id: string;
+  category: 'AUTHENTICATION' | 'DATABASE' | 'MACHINES' | 'JOBS' | 'SCHEDULING' | 'ANALYTICS' | 'DEPLOYMENT';
+  test_name: string;
+  endpoint: string;
+  status: 'PASS' | 'FAIL' | 'WARNING';
+  execution_time_ms: number;
+  details?: string;
+  error_message?: string;
+  suggested_fix?: string;
+}
+
+export interface SystemHealthReport {
+  timestamp: string;
+  overall_status: 'HEALTHY' | 'WARNING' | 'DEGRADED';
+  total_tests: number;
+  passed_tests: number;
+  failed_tests: number;
+  warning_tests: number;
+  environment: string;
+  database_status: string;
+  api_version: string;
+  tests: SystemHealthTestResult[];
+}
+

@@ -18,7 +18,12 @@ import {
   RefreshCw, 
   ChevronRight,
   ShieldCheck,
-  Play
+  Play,
+  Plus,
+  ArrowRight,
+  ListTodo,
+  Check,
+  Circle
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -27,7 +32,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenWhatIf }) => {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
   const [latestSchedule, setLatestSchedule] = useState<Schedule | null>(null);
@@ -81,14 +86,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenWhatIf }
   }
 
   const metrics = stats?.metrics || {
-    makespan_hours: 38.5,
-    average_utilization_pct: 87.4,
-    total_idle_hours: 4.8,
-    delayed_jobs_count: 2,
-    bottleneck_candidate: 'M01 (CNC 5-Axis Milling Center Alpha)',
-    schedule_version: 'SCH-2026-001',
+    makespan_hours: 0.0,
+    average_utilization_pct: 0.0,
+    total_idle_hours: 0.0,
+    delayed_jobs_count: 0,
+    bottleneck_candidate: 'None',
+    schedule_version: 'SCH-EMPTY',
     scheduling_mode: 'quantum_inspired',
   };
+
+  const isEmptyState = machines.length === 0;
+  const checklist = stats?.setup_checklist || {
+    factory_profile: true,
+    machines: machines.length > 0,
+    jobs: (stats?.jobs?.total || 0) > 0,
+    operations: false,
+    eligible_machines: false,
+    first_schedule: Boolean(latestSchedule),
+    completed_count: machines.length > 0 ? 3 : 1,
+    total_count: 6
+  };
+
+  const checklistItems = [
+    { id: 'profile', label: '1. Configure Factory Profile', done: checklist.factory_profile, action: () => onNavigate('settings') },
+    { id: 'machines', label: '2. Register Production Machines', done: machines.length > 0, action: () => onNavigate('machines') },
+    { id: 'jobs', label: '3. Create Work Orders / Jobs', done: (stats?.jobs?.total || 0) > 0, action: () => onNavigate('jobs') },
+    { id: 'ops', label: '4. Define Operation Stages', done: checklist.operations, action: () => onNavigate('jobs') },
+    { id: 'eligible', label: '5. Assign Eligible Machines Matrix', done: checklist.eligible_machines, action: () => onNavigate('jobs') },
+    { id: 'schedule', label: '6. Generate First Optimized Schedule', done: Boolean(latestSchedule), action: () => onNavigate('scheduling') },
+  ];
 
   return (
     <div className="space-y-6 pb-12">
@@ -137,7 +163,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenWhatIf }
         </div>
       </div>
 
-      {/* 12 Live KPIs: Section 21 Mandate */}
+      {/* Empty State / Factory Setup Checklist (Requirement #9) */}
+      {isEmptyState && (
+        <div className="bg-[#0e1628] border border-cyan-500/30 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-5">
+            <div>
+              <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm mb-1">
+                <ListTodo className="w-4 h-4" />
+                <span>Welcome to Quantum Factory Brain — Setup Checklist</span>
+              </div>
+              <p className="text-xs text-slate-300">
+                Your custom factory has no machines registered yet. Follow this 6-step checklist to configure your production line and run your first DFJSSP schedule.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onNavigate('machines')}
+                className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add First Machine</span>
+              </button>
+              <button
+                onClick={() => onNavigate('jobs')}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add First Job</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {checklistItems.map((item) => (
+              <div
+                key={item.id}
+                onClick={item.action}
+                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                  item.done
+                    ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-300'
+                    : 'bg-slate-900/60 border-slate-800 hover:border-cyan-500/40 text-slate-300'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  {item.done ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  ) : (
+                    <Circle className="w-4 h-4 text-slate-500 shrink-0" />
+                  )}
+                  <span className="text-xs font-semibold">{item.label}</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 6 Live KPIs: Section 21 Mandate */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono flex items-center gap-2">
@@ -153,9 +236,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenWhatIf }
           <KPICard
             id="kpi-total-machines"
             title="Total Machines"
-            value={stats?.machines.total || 6}
+            value={stats?.machines?.total || machines.length}
             unit="bays"
-            subtitle={`${stats?.machines.active || 4} busy / ${stats?.machines.available || 2} idle`}
+            subtitle={`${stats?.machines?.active || 0} busy / ${stats?.machines?.available || machines.length} idle`}
             icon={Cpu}
             variant="blue"
             onClick={() => onNavigate('machines')}
@@ -163,10 +246,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenWhatIf }
           <KPICard
             id="kpi-total-jobs"
             title="Active Job Orders"
-            value={stats?.jobs.total || 20}
+            value={stats?.jobs?.total || 0}
             unit="orders"
-            subtitle={`${stats?.jobs.urgent || 3} urgent priority`}
-            trend={{ value: `${stats?.jobs.urgent || 3} URGENT`, isPositive: false }}
+            subtitle={`${stats?.jobs?.urgent || 0} urgent priority`}
+            trend={{ value: `${stats?.jobs?.urgent || 0} URGENT`, isPositive: false }}
             icon={Layers}
             variant="purple"
             onClick={() => onNavigate('jobs')}
@@ -227,7 +310,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenWhatIf }
               Dynamic Gantt Timeline — Current Floor Allocation
             </h2>
             <p className="text-xs text-slate-400">
-              Visualizing multi-operation sequence routing across all 6 production cells.
+              Visualizing multi-operation sequence routing across production cells.
             </p>
           </div>
           <button
@@ -252,7 +335,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenWhatIf }
         <ScheduleComparison />
       </div>
 
-      {/* Bottom Row: Active Jobs & Critical Bottlenecks */}
+      {/* Bottom Row: Active Jobs & Machine Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Active High-Priority Jobs Table */}
         <div className="lg:col-span-2 bg-[#0e172b] border border-slate-800 rounded-xl p-5 shadow-lg">
@@ -266,7 +349,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenWhatIf }
               onClick={() => onNavigate('jobs')}
               className="text-xs text-cyan-400 hover:underline font-medium"
             >
-              View all 20 jobs &rarr;
+              View all jobs ({stats?.jobs?.total || 0}) &rarr;
             </button>
           </div>
 
@@ -283,79 +366,93 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenWhatIf }
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {recentJobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="p-2.5 font-mono font-bold text-cyan-300">
-                      {job.job_number}
-                    </td>
-                    <td className="p-2.5">
-                      <div className="font-medium text-slate-200">{job.product_name}</div>
-                      <div className="text-[11px] text-slate-400">{job.customer_name}</div>
-                    </td>
-                    <td className="p-2.5">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        job.priority === 'URGENT'
-                          ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                          : job.priority === 'HIGH'
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                          : 'bg-blue-500/20 text-blue-300'
-                      }`}>
-                        {job.priority}
-                      </span>
-                    </td>
-                    <td className="p-2.5 font-mono">{job.quantity} units</td>
-                    <td className="p-2.5 font-mono text-slate-400">
-                      {new Date(job.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="p-2.5 text-right">
-                      <button
-                        onClick={() => onNavigate('job-details', { id: job.id })}
-                        className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 text-[11px] font-semibold transition-colors"
-                      >
-                        Inspect Precedence
-                      </button>
+                {recentJobs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-6 text-center text-slate-500">
+                      No jobs recorded. Click "+ Job" to register work orders.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  recentJobs.map((job) => (
+                    <tr key={job.id} className="hover:bg-slate-800/30 transition-colors">
+                      <td className="p-2.5 font-mono font-bold text-cyan-300">
+                        {job.job_number}
+                      </td>
+                      <td className="p-2.5">
+                        <div className="font-medium text-slate-200">{job.product_name}</div>
+                        <div className="text-[11px] text-slate-400">{job.customer_name}</div>
+                      </td>
+                      <td className="p-2.5">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          job.priority === 'URGENT'
+                            ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                            : job.priority === 'HIGH'
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            : 'bg-blue-500/20 text-blue-300'
+                        }`}>
+                          {job.priority}
+                        </span>
+                      </td>
+                      <td className="p-2.5 font-mono">{job.quantity} units</td>
+                      <td className="p-2.5 font-mono text-slate-400">
+                        {new Date(job.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="p-2.5 text-right">
+                        <button
+                          onClick={() => onNavigate('job-details', { id: job.id })}
+                          className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-400 text-[11px] font-semibold transition-colors"
+                        >
+                          Inspect Precedence
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Machine Status & Bottleneck Quick Watch */}
+        {/* Machine Capacity Monitor */}
         <div className="bg-[#0e172b] border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col justify-between">
           <div>
             <div className="border-b border-slate-800 pb-3 mb-4">
               <h3 className="text-sm font-bold text-white">Machine Capacity Monitor</h3>
-              <p className="text-xs text-slate-400">Real-time status across 6 production bays.</p>
+              <p className="text-xs text-slate-400">Real-time status across production bays.</p>
             </div>
 
             <div className="space-y-3">
-              {machines.map((m) => {
-                const isMaint = m.status === 'MAINTENANCE' || m.status === 'OFFLINE';
-                return (
-                  <div key={m.id} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/60 border border-slate-800/80">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded bg-slate-800 flex items-center justify-center font-mono text-xs font-bold text-cyan-400">
-                        {m.machine_code}
+              {machines.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 text-xs">
+                  No machines added yet. Click "+ Machine" to register production cells.
+                </div>
+              ) : (
+                machines.map((m) => {
+                  const isMaint = m.status === 'MAINTENANCE' || m.status === 'OFFLINE';
+                  return (
+                    <div key={m.id} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/60 border border-slate-800/80">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded bg-slate-800 flex items-center justify-center font-mono text-xs font-bold text-cyan-400">
+                          {m.machine_code}
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-slate-200 truncate w-32 sm:w-40">{m.machine_name}</div>
+                          <div className="text-[10px] text-slate-400">{m.machine_type}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="text-xs font-semibold text-slate-200 truncate w-32 sm:w-40">{m.machine_name}</div>
-                        <div className="text-[10px] text-slate-400">{m.machine_type}</div>
-                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        isMaint
+                          ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                          : m.status === 'BUSY'
+                          ? 'bg-blue-500/20 text-blue-300'
+                          : 'bg-emerald-500/20 text-emerald-300'
+                      }`}>
+                        {m.status}
+                      </span>
                     </div>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      isMaint
-                        ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                        : m.status === 'BUSY'
-                        ? 'bg-blue-500/20 text-blue-300'
-                        : 'bg-emerald-500/20 text-emerald-300'
-                    }`}>
-                      {m.status}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
 

@@ -1,0 +1,44 @@
+# Quantum Factory Brain - Multi-Stage Production Container (Apache + PHP 8.2 + Node.js Vite)
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM php:8.2-apache
+RUN docker-php-ext-install pdo pdo_mysql opcache
+RUN a2enmod rewrite headers
+
+# Configure Apache DocumentRoot and permissions
+ENV APACHE_DOCUMENT_ROOT /var/www/html
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
+# Configure port from environment or default 3000
+RUN sed -i 's/80/${PORT:-3000}/g' /etc/apache2/ports.conf /etc/apache2/sites-available/*.conf
+
+WORKDIR /var/www/html
+
+# Copy backend PHP API
+COPY backend/ ./backend/
+COPY database/ ./database/
+
+# Copy built React frontend to web root
+COPY --from=frontend-builder /app/dist/ ./
+
+# Setup Apache .htaccess for SPA routing and /api rewriting
+RUN echo "RewriteEngine On\n\
+RewriteCond %{REQUEST_URI} ^/api/health\n\
+RewriteRule ^api/health$ backend/api/health.php [L,QSA]\n\
+RewriteCond %{REQUEST_URI} ^/api/(.*)\.php$\n\
+RewriteRule ^api/(.*)\.php$ backend/api/\$1.php [L,QSA]\n\
+RewriteCond %{REQUEST_URI} ^/api/(.*)$\n\
+RewriteRule ^api/(.*)$ backend/api/\$1.php [L,QSA]\n\
+RewriteCond %{REQUEST_FILENAME} !-f\n\
+RewriteCond %{REQUEST_FILENAME} !-d\n\
+RewriteRule ^(.*)$ index.html [L]\n" > /var/www/html/.htaccess
+
+EXPOSE 3000
+
+CMD ["apache2-foreground"]

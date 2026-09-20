@@ -21,13 +21,34 @@ DROP TABLE IF EXISTS `job_operations`;
 DROP TABLE IF EXISTS `jobs`;
 DROP TABLE IF EXISTS `machine_availability`;
 DROP TABLE IF EXISTS `machines`;
+DROP TABLE IF EXISTS `user_factories`;
+DROP TABLE IF EXISTS `factories`;
 DROP TABLE IF EXISTS `users`;
 
 -- ------------------------------------------------------------
--- 1. USERS TABLE
+-- 1. FACTORIES TABLE (Multi-Tenant & Company Separation)
+-- ------------------------------------------------------------
+CREATE TABLE `factories` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `factory_code` VARCHAR(50) NOT NULL UNIQUE,
+  `factory_name` VARCHAR(150) NOT NULL,
+  `industry` VARCHAR(100) DEFAULT 'Aerospace & Precision Manufacturing',
+  `location` VARCHAR(150) DEFAULT 'Amaravati Quantum Valley',
+  `contact_email` VARCHAR(150) DEFAULT 'ops@quantumfactory.local',
+  `working_hours` VARCHAR(50) DEFAULT '08:00 - 20:00 (Two 8h Shifts)',
+  `time_zone` VARCHAR(50) DEFAULT 'UTC+05:30 (IST)',
+  `is_demo` BOOLEAN NOT NULL DEFAULT FALSE,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_factories_demo` (`is_demo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ------------------------------------------------------------
+-- 2. USERS TABLE
 -- ------------------------------------------------------------
 CREATE TABLE `users` (
   `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `factory_id` INT UNSIGNED DEFAULT 1,
   `name` VARCHAR(100) NOT NULL,
   `email` VARCHAR(150) NOT NULL UNIQUE,
   `password` VARCHAR(255) NOT NULL,
@@ -36,7 +57,8 @@ CREATE TABLE `users` (
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX `idx_users_role` (`role`),
-  INDEX `idx_users_status` (`status`)
+  INDEX `idx_users_status` (`status`),
+  CONSTRAINT `fk_users_factory` FOREIGN KEY (`factory_id`) REFERENCES `factories` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ------------------------------------------------------------
@@ -229,10 +251,16 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- Hashed via PHP password_hash('password123', PASSWORD_BCRYPT)
 -- ============================================================
 
-INSERT INTO `users` (`id`, `name`, `email`, `password`, `role`, `status`) VALUES
-(1, 'System Administrator', 'admin@qfactory.local', '$2y$10$wN1QyZ6kG0R3wB7Yl8H4uOYQd3dF5mR0Y.c0dZ1L8l9B0r0p1M0uG', 'admin', 'active'),
-(2, 'Chief Production Manager', 'manager@qfactory.local', '$2y$10$wN1QyZ6kG0R3wB7Yl8H4uOYQd3dF5mR0Y.c0dZ1L8l9B0r0p1M0uG', 'manager', 'active'),
-(3, 'Lead Machine Operator', 'operator@qfactory.local', '$2y$10$wN1QyZ6kG0R3wB7Yl8H4uOYQd3dF5mR0Y.c0dZ1L8l9B0r0p1M0uG', 'operator', 'active');
+INSERT INTO `factories` (`id`, `factory_code`, `factory_name`, `industry`, `location`, `contact_email`, `is_demo`) VALUES
+(1, 'DEMO-DFJSSP-01', 'Amaravati Quantum Valley Digital Foundry (Demo)', 'Aerospace & Precision Manufacturing', 'Amaravati Quantum Valley, AP', 'ops@quantumfactory.local', TRUE),
+(2, 'PROD-PLANT-01', 'Custom Flexible Production Bay', 'Industrial Robotics & Precision Automation', 'Industrial Zone Bay 4', 'manager@quantumfactory.local', FALSE);
+
+INSERT INTO `users` (`id`, `factory_id`, `name`, `email`, `password`, `role`, `status`) VALUES
+(1, 1, 'System Administrator', 'admin@quantumfactory.local', '$2y$10$wN1QyZ6kG0R3wB7Yl8H4uOYQd3dF5mR0Y.c0dZ1L8l9B0r0p1M0uG', 'admin', 'active'),
+(2, 1, 'Chief Production Manager', 'manager@quantumfactory.local', '$2y$10$wN1QyZ6kG0R3wB7Yl8H4uOYQd3dF5mR0Y.c0dZ1L8l9B0r0p1M0uG', 'manager', 'active'),
+(3, 1, 'System Administrator (Alias)', 'admin@qfactory.local', '$2y$10$wN1QyZ6kG0R3wB7Yl8H4uOYQd3dF5mR0Y.c0dZ1L8l9B0r0p1M0uG', 'admin', 'active'),
+(4, 1, 'Chief Production Manager (Alias)', 'manager@qfactory.local', '$2y$10$wN1QyZ6kG0R3wB7Yl8H4uOYQd3dF5mR0Y.c0dZ1L8l9B0r0p1M0uG', 'manager', 'active'),
+(5, 1, 'Lead Machine Operator', 'operator@qfactory.local', '$2y$10$wN1QyZ6kG0R3wB7Yl8H4uOYQd3dF5mR0Y.c0dZ1L8l9B0r0p1M0uG', 'operator', 'active');
 
 -- 6 Flexible Manufacturing Machines
 INSERT INTO `machines` (`id`, `machine_code`, `machine_name`, `machine_type`, `status`, `capacity`, `location`, `maintenance_status`) VALUES

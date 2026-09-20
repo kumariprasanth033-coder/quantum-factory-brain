@@ -17,17 +17,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('qfb_user');
     if (saved) {
+      if (saved === 'null' || saved === 'logged_out') return null;
       try {
         return JSON.parse(saved);
       } catch {
         return null;
       }
     }
-    // Default active demo user: Chief Production Manager
+    // Default active authorized manager for rapid inspection
     return {
       id: 2,
-      name: 'Dr. Sarah Mitchell',
-      email: 'manager@qfactory.local',
+      name: 'Chief Production Manager',
+      email: 'manager@quantumfactory.local',
       role: 'manager',
       status: 'active'
     };
@@ -39,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       localStorage.setItem('qfb_user', JSON.stringify(user));
     } else {
-      localStorage.removeItem('qfb_user');
+      localStorage.setItem('qfb_user', 'logged_out');
     }
   }, [user]);
 
@@ -50,12 +51,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(res.user);
     } catch (err: any) {
       // Fallback for offline demo credentials
-      if (email === 'admin@qfactory.local') {
-        setUser({ id: 1, name: 'Chief Systems Administrator', email, role: 'admin' });
-      } else if (email === 'manager@qfactory.local') {
-        setUser({ id: 2, name: 'Dr. Sarah Mitchell', email, role: 'manager' });
-      } else if (email === 'operator@qfactory.local') {
-        setUser({ id: 3, name: 'Lead CNC Operator', email, role: 'operator' });
+      const cleanEmail = email.trim().toLowerCase();
+      if (cleanEmail === 'admin@quantumfactory.local' || cleanEmail === 'admin@qfactory.local') {
+        setUser({ id: 1, name: 'System Administrator', email: cleanEmail, role: 'admin' });
+      } else if (cleanEmail === 'manager@quantumfactory.local' || cleanEmail === 'manager@qfactory.local') {
+        setUser({ id: 2, name: 'Chief Production Manager', email: cleanEmail, role: 'manager' });
+      } else if (cleanEmail === 'operator@quantumfactory.local' || cleanEmail === 'operator@qfactory.local') {
+        setUser({ id: 3, name: 'Lead Machine Operator', email: cleanEmail, role: 'operator' });
       } else {
         throw err;
       }
@@ -66,11 +68,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const demoLogin = (role: 'admin' | 'manager' | 'operator') => {
     if (role === 'admin') {
-      setUser({ id: 1, name: 'Chief Systems Administrator', email: 'admin@qfactory.local', role: 'admin' });
+      setUser({ id: 1, name: 'System Administrator', email: 'admin@quantumfactory.local', role: 'admin' });
     } else if (role === 'operator') {
-      setUser({ id: 3, name: 'Lead CNC Operator', email: 'operator@qfactory.local', role: 'operator' });
+      setUser({ id: 3, name: 'Lead Machine Operator', email: 'operator@quantumfactory.local', role: 'operator' });
     } else {
-      setUser({ id: 2, name: 'Dr. Sarah Mitchell', email: 'manager@qfactory.local', role: 'manager' });
+      setUser({ id: 2, name: 'Chief Production Manager', email: 'manager@quantumfactory.local', role: 'manager' });
     }
   };
 
