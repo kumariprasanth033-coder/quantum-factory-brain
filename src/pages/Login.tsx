@@ -30,7 +30,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setErrorMessage(null);
     setSuccessNotice(null);
 
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
       setErrorMessage('Please enter your factory user email address.');
       return;
     }
@@ -40,11 +41,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     }
 
     try {
-      await login(email.trim(), password);
-      setSuccessNotice('Authentication verified. Loading factory floor...');
+      await login(trimmedEmail, password, role);
+      setSuccessNotice(`Authentication verified as ${role.toUpperCase()}. Loading factory floor...`);
       setTimeout(() => {
         if (onLoginSuccess) onLoginSuccess();
-      }, 400);
+      }, 350);
     } catch (err: any) {
       setErrorMessage(err.message || 'Invalid credentials. You can click any authorized account below for instant entry.');
     }
@@ -66,8 +67,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     setRole(targetRole);
 
     try {
-      await login(targetEmail, targetPass);
-      if (onLoginSuccess) onLoginSuccess();
+      await login(targetEmail, targetPass, targetRole);
+      setSuccessNotice(`Logged in as ${targetRole.toUpperCase()}. Loading factory floor...`);
+      setTimeout(() => {
+        if (onLoginSuccess) onLoginSuccess();
+      }, 300);
     } catch {
       demoLogin(targetRole);
       if (onLoginSuccess) onLoginSuccess();
@@ -208,7 +212,13 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 <button
                   type="button"
                   id="login-role-manager"
-                  onClick={() => setRole('manager')}
+                  onClick={() => {
+                    setRole('manager');
+                    if (!email || email.includes('@quantumfactory.local') || email.includes('@qfactory.local')) {
+                      setEmail('manager@quantumfactory.local');
+                      setPassword('password123');
+                    }
+                  }}
                   className={`py-2 px-2 rounded-lg text-[11px] font-semibold border text-center transition-all ${
                     role === 'manager'
                       ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-sm'
@@ -220,7 +230,13 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 <button
                   type="button"
                   id="login-role-operator"
-                  onClick={() => setRole('operator')}
+                  onClick={() => {
+                    setRole('operator');
+                    if (!email || email.includes('@quantumfactory.local') || email.includes('@qfactory.local')) {
+                      setEmail('operator@quantumfactory.local');
+                      setPassword('password123');
+                    }
+                  }}
                   className={`py-2 px-2 rounded-lg text-[11px] font-semibold border text-center transition-all ${
                     role === 'operator'
                       ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-sm'
@@ -232,7 +248,13 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 <button
                   type="button"
                   id="login-role-admin"
-                  onClick={() => setRole('admin')}
+                  onClick={() => {
+                    setRole('admin');
+                    if (!email || email.includes('@quantumfactory.local') || email.includes('@qfactory.local')) {
+                      setEmail('admin@quantumfactory.local');
+                      setPassword('admin123');
+                    }
+                  }}
                   className={`py-2 px-2 rounded-lg text-[11px] font-semibold border text-center transition-all ${
                     role === 'admin'
                       ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-sm'

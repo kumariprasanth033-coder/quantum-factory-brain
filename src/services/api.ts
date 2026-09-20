@@ -41,6 +41,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const url = `${baseUrl}${cleanEndpoint}`;
 
   const currentMode = getStoredFactoryMode();
+  const token = localStorage.getItem('qfb_auth_token');
 
   const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -48,7 +49,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     'X-Factory-Mode': currentMode,
   };
 
+  if (token) {
+    defaultHeaders['Authorization'] = `Bearer ${token}`;
+  }
+
   const config: RequestInit = {
+    credentials: 'include',
     ...options,
     headers: {
       ...defaultHeaders,
@@ -63,6 +69,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     try {
       const errJson = await response.json();
       if (errJson.message) errorMsg = errJson.message;
+      else if (errJson.error) errorMsg = errJson.error;
     } catch {
       errorMsg = response.statusText || errorMsg;
     }
@@ -94,16 +101,40 @@ export const api = {
   runSystemHealthCheck: () =>
     request<SystemHealthReport>('/system/health-check'),
 
-  // Auth
-  login: (credentials: { email: string; password: string }) =>
-    request<{ user: { id: number; name: string; email: string; role: 'admin' | 'manager' | 'operator' }; token?: string }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    }),
-  logout: () =>
-    request<null>('/auth/logout', { method: 'POST' }),
-  getSession: () =>
-    request<{ authenticated: boolean; user: any }>('/auth/session'),
+  // Auth (Sends proper POST request to backend with support for PHP and Node/Express)
+  login: async (credentials: { email: string; password: string; role?: string }) => {
+    try {
+      return await request<{ user: { id: number; name: string; email: string; role: 'admin' | 'manager' | 'operator' }; token?: string }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      });
+    } catch (err: any) {
+      if (err.message && (err.message.includes('404') || err.message.includes('Not Found'))) {
+        return await request<{ user: { id: number; name: string; email: string; role: 'admin' | 'manager' | 'operator' }; token?: string }>('/auth/login.php', {
+          method: 'POST',
+          body: JSON.stringify(credentials),
+        });
+      }
+      throw err;
+    }
+  },
+  logout: async () => {
+    try {
+      return await request<null>('/auth/logout', { method: 'POST' });
+    } catch {
+      return await request<null>('/auth/logout.php', { method: 'POST' }).catch(() => null);
+    }
+  },
+  getSession: async () => {
+    try {
+      return await request<{ authenticated: boolean; user: any }>('/auth/session');
+    } catch {
+      return await request<{ authenticated: boolean; user: any }>('/auth/session.php').catch(() => ({
+        authenticated: false,
+        user: null
+      }));
+    }
+  },
 
   // Factory Multi-Tenancy & Profile
   getFactoryMode: () =>
