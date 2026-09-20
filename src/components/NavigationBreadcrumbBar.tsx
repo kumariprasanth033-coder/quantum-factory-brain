@@ -9,7 +9,8 @@ import {
   ShieldCheck, 
   Sparkles,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  RotateCcw
 } from 'lucide-react';
 import { FactoryMode } from '../types';
 
@@ -23,6 +24,7 @@ interface NavigationBreadcrumbBarProps {
   onToggleFactoryMode: () => void;
   onNavigate: (page: string) => void;
   onOpenWhatIf: () => void;
+  onUndoSchedule?: () => void;
 }
 
 const pageTitles: Record<string, { title: string; category: string }> = {
@@ -39,6 +41,7 @@ const pageTitles: Record<string, { title: string; category: string }> = {
   history: { title: 'Schedule Version History', category: 'Management' },
   settings: { title: 'Factory Profile & API Config', category: 'Management' },
   'system-health': { title: 'Automated Functionality Tests', category: 'Diagnostics' },
+  login: { title: 'Operator Access Portal', category: 'Authentication' },
 };
 
 export const NavigationBreadcrumbBar: React.FC<NavigationBreadcrumbBarProps> = ({
@@ -51,6 +54,7 @@ export const NavigationBreadcrumbBar: React.FC<NavigationBreadcrumbBarProps> = (
   onToggleFactoryMode,
   onNavigate,
   onOpenWhatIf,
+  onUndoSchedule,
 }) => {
   const currentMeta = pageTitles[currentPage] || { title: 'Factory Floor', category: 'Operations' };
 
@@ -63,15 +67,15 @@ export const NavigationBreadcrumbBar: React.FC<NavigationBreadcrumbBarProps> = (
             id="nav-btn-prev"
             onClick={onGoBack}
             disabled={!canGoBack}
-            className={`p-1.5 rounded transition-colors flex items-center gap-1 ${
+            className={`p-1.5 rounded transition-colors flex items-center gap-1.5 ${
               canGoBack
-                ? 'text-slate-200 hover:text-white hover:bg-slate-800 cursor-pointer'
-                : 'text-slate-600 cursor-not-allowed opacity-50'
+                ? 'text-slate-200 hover:text-white hover:bg-slate-800 cursor-pointer font-semibold'
+                : 'text-slate-600 cursor-not-allowed opacity-40'
             }`}
             title="Go Back (Previous Page)"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span className="text-[11px] font-medium hidden sm:inline">Previous</span>
+            <span className="text-[11px] font-bold">Previous</span>
           </button>
 
           <span className="w-px h-3.5 bg-slate-800" />
@@ -80,17 +84,30 @@ export const NavigationBreadcrumbBar: React.FC<NavigationBreadcrumbBarProps> = (
             id="nav-btn-next"
             onClick={onGoForward}
             disabled={!canGoForward}
-            className={`p-1.5 rounded transition-colors flex items-center gap-1 ${
+            className={`p-1.5 rounded transition-colors flex items-center gap-1.5 ${
               canGoForward
-                ? 'text-slate-200 hover:text-white hover:bg-slate-800 cursor-pointer'
-                : 'text-slate-600 cursor-not-allowed opacity-50'
+                ? 'text-slate-200 hover:text-white hover:bg-slate-800 cursor-pointer font-semibold'
+                : 'text-slate-600 cursor-not-allowed opacity-40'
             }`}
             title="Go Forward"
           >
-            <span className="text-[11px] font-medium hidden sm:inline">Forward</span>
+            <span className="text-[11px] font-bold">Forward</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Global Undo Schedule Button */}
+        {onUndoSchedule && (
+          <button
+            id="nav-btn-undo"
+            onClick={onUndoSchedule}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-all font-semibold shadow-sm text-[11px]"
+            title="Undo / Revert Floor to Previous Schedule Version"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+            <span>Undo Schedule</span>
+          </button>
+        )}
 
         {/* Breadcrumb Trail */}
         <div className="flex items-center gap-2 text-slate-400 font-mono text-[11px]">

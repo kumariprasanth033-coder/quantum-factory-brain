@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
-import { X, Sparkles, AlertTriangle, Play, RefreshCw, CheckCircle2, ArrowRight, ShieldAlert } from 'lucide-react';
+import { X, Sparkles, AlertTriangle, Play, RefreshCw, CheckCircle2, ArrowRight, ShieldAlert, RotateCcw } from 'lucide-react';
 
 interface WhatIfSimulationModalProps {
   isOpen: boolean;
@@ -224,14 +224,27 @@ export const WhatIfSimulationModal: React.FC<WhatIfSimulationModalProps> = ({
                 <span>{isSimulating ? 'Computing Quantum Anneal...' : 'Run Simulation'}</span>
               </button>
             ) : (
-              <button
-                id="btn-apply-what-if"
-                onClick={handleApplyAndClose}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-all shadow-lg shadow-cyan-900/40"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Apply Re-Optimized Schedule to Floor</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  id="btn-undo-what-if"
+                  type="button"
+                  onClick={() => setSimulationResult(null)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold transition-all"
+                  title="Discard simulation result without applying"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Undo / Discard</span>
+                </button>
+
+                <button
+                  id="btn-apply-what-if"
+                  onClick={handleApplyAndClose}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-all shadow-lg shadow-cyan-900/40"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Apply Re-Optimized Schedule to Floor</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -235,6 +235,10 @@ export const api = {
     }),
   getScheduleHistory: () =>
     request<Schedule[]>('/scheduling/history'),
+  undoSchedule: () =>
+    request<Schedule>('/scheduling/undo', { method: 'POST' }),
+  restoreSchedule: (id: number) =>
+    request<Schedule>(`/scheduling/restore/${id}`, { method: 'POST' }),
   compareSchedulers: () =>
     request<ScheduleComparisonResult>('/scheduling/compare'),
 

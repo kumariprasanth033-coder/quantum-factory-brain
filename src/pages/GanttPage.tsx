@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { ScheduleOperation, Machine, Schedule } from '../types';
 import { GanttChart } from '../components/GanttChart';
-import { BarChart3, RefreshCw, Sparkles, Download, Layers, Clock, Cpu } from 'lucide-react';
+import { BarChart3, RefreshCw, Sparkles, Download, Layers, Clock, Cpu, RotateCcw } from 'lucide-react';
 
 interface GanttPageProps {
   onOpenWhatIf: () => void;
@@ -13,6 +13,7 @@ export const GanttPage: React.FC<GanttPageProps> = ({ onOpenWhatIf }) => {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [undoNotice, setUndoNotice] = useState<string | null>(null);
 
   const loadGanttData = async () => {
     setLoading(true);
@@ -31,6 +32,18 @@ export const GanttPage: React.FC<GanttPageProps> = ({ onOpenWhatIf }) => {
       alert('Failed to load Gantt operations: ' + err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUndoSchedule = async () => {
+    try {
+      const reverted = await api.undoSchedule();
+      setSchedule(reverted);
+      setScheduleOperations(reverted.schedule_operations || []);
+      setUndoNotice(`Undo successful! Reverted to previous schedule: ${reverted.version} (Makespan: ${reverted.makespan}h)`);
+      setTimeout(() => setUndoNotice(null), 5000);
+    } catch (err: any) {
+      alert(err.message || 'Cannot undo: Already at baseline schedule version.');
     }
   };
 
@@ -58,6 +71,16 @@ export const GanttPage: React.FC<GanttPageProps> = ({ onOpenWhatIf }) => {
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
+            id="gantt-undo-schedule-btn"
+            onClick={handleUndoSchedule}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-semibold hover:bg-amber-500/30 transition-all shadow-sm"
+            title="Undo / Revert to previous schedule version from history"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Undo Schedule</span>
+          </button>
+
+          <button
             onClick={onOpenWhatIf}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 text-purple-300 border border-purple-500/30 text-xs font-semibold hover:bg-purple-600/30"
           >
@@ -83,6 +106,18 @@ export const GanttPage: React.FC<GanttPageProps> = ({ onOpenWhatIf }) => {
           </button>
         </div>
       </div>
+
+      {undoNotice && (
+        <div className="p-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>{undoNotice}</span>
+          </div>
+          <button onClick={() => setUndoNotice(null)} className="text-amber-400 hover:text-white text-xs">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Schedule Meta Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#0e172b] border border-slate-800 rounded-xl p-4 text-xs">

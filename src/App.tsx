@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { Navbar } from './components/Navbar';
+import { NavigationBreadcrumbBar } from './components/NavigationBreadcrumbBar';
 import { WhatIfSimulationModal } from './components/WhatIfSimulationModal';
 import { HackathonDemoModal } from './components/HackathonDemoModal';
 
@@ -18,9 +19,11 @@ import { Alerts } from './pages/Alerts';
 import { Reports } from './pages/Reports';
 import { History } from './pages/History';
 import { Settings } from './pages/Settings';
+import { SystemHealth } from './pages/SystemHealth';
+import { Login } from './pages/Login';
 
 import { api } from './services/api';
-import { Schedule } from './types';
+import { Schedule, FactoryMode } from './types';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<string>('dashboard');
@@ -30,6 +33,11 @@ export default function App() {
   const [isTourOpen, setIsTourOpen] = useState<boolean>(false);
   const [unreadAlertsCount, setUnreadAlertsCount] = useState<number>(3);
   const [activeSchedule, setActiveSchedule] = useState<Schedule | null>(null);
+
+  // Navigation History for Previous / Forward Buttons
+  const [pageHistory, setPageHistory] = useState<string[]>(['dashboard']);
+  const [historyIndex, setHistoryIndex] = useState<number>(0);
+  const [factoryMode, setFactoryMode] = useState<FactoryMode>('demo');
 
   const fetchAlertsCount = async () => {
     try {
@@ -46,12 +54,51 @@ export default function App() {
     fetchAlertsCount();
   }, [currentPage]);
 
-  const handleNavigate = (page: string, params?: any) => {
+  const handleNavigate = (page: string, params?: any, isHistoryMove: boolean = false) => {
     if (page === 'job-details' && params?.id) {
       setSelectedJobId(params.id);
     }
+    
+    if (!isHistoryMove && page !== currentPage) {
+      const updatedHistory = pageHistory.slice(0, historyIndex + 1);
+      updatedHistory.push(page);
+      setPageHistory(updatedHistory);
+      setHistoryIndex(updatedHistory.length - 1);
+    }
+
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleGoBack = () => {
+    if (historyIndex > 0) {
+      const prevIndex = historyIndex - 1;
+      setHistoryIndex(prevIndex);
+      handleNavigate(pageHistory[prevIndex], undefined, true);
+    }
+  };
+
+  const handleGoForward = () => {
+    if (historyIndex < pageHistory.length - 1) {
+      const nextIndex = historyIndex + 1;
+      setHistoryIndex(nextIndex);
+      handleNavigate(pageHistory[nextIndex], undefined, true);
+    }
+  };
+
+  const handleToggleFactoryMode = () => {
+    setFactoryMode(prev => (prev === 'demo' ? 'custom' : 'demo'));
+  };
+
+  const handleUndoSchedule = async () => {
+    try {
+      const reverted = await api.undoSchedule();
+      setActiveSchedule(reverted);
+      await fetchAlertsCount();
+      alert(`Schedule undone successfully! Reverted to ${reverted.version} (Makespan: ${reverted.makespan}h).`);
+    } catch (err: any) {
+      alert(err.message || 'No previous schedule version available to undo to.');
+    }
   };
 
   const handleResetDemoData = async () => {
@@ -82,8 +129,23 @@ export default function App() {
           onOpenWhatIf={() => setIsWhatIfOpen(true)}
           onOpenTour={() => setIsTourOpen(true)}
           onResetDemo={handleResetDemoData}
-          onNavigateToAlerts={() => setCurrentPage('alerts')}
+          onNavigateToAlerts={() => handleNavigate('alerts')}
+          onNavigateToLogin={() => handleNavigate('login')}
           unreadAlertsCount={unreadAlertsCount}
+        />
+
+        {/* Navigation Breadcrumb Bar with Previous, Forward, and Undo Schedule Buttons */}
+        <NavigationBreadcrumbBar
+          currentPage={currentPage}
+          canGoBack={historyIndex > 0}
+          canGoForward={historyIndex < pageHistory.length - 1}
+          onGoBack={handleGoBack}
+          onGoForward={handleGoForward}
+          factoryMode={factoryMode}
+          onToggleFactoryMode={handleToggleFactoryMode}
+          onNavigate={handleNavigate}
+          onOpenWhatIf={() => setIsWhatIfOpen(true)}
+          onUndoSchedule={handleUndoSchedule}
         />
 
         <div className="flex-1 flex overflow-hidden">
@@ -121,7 +183,7 @@ export default function App() {
             {currentPage === 'job-details' && selectedJobId && (
               <JobDetails
                 jobId={selectedJobId}
-                onBack={() => handleNavigate('jobs')}
+                onBack={() => handleGoBack()}
                 onNavigateToGantt={() => handleNavigate('gantt')}
               />
             )}
@@ -166,6 +228,16 @@ export default function App() {
 
             {currentPage === 'settings' && (
               <Settings />
+            )}
+
+            {currentPage === 'system-health' && (
+              <SystemHealth />
+            )}
+
+            {currentPage === 'login' && (
+              <Login
+                onLoginSuccess={() => handleNavigate('dashboard')}
+              />
             )}
           </main>
         </div>

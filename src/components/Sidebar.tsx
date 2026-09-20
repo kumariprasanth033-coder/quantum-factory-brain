@@ -13,7 +13,9 @@ import {
   Settings, 
   ShieldAlert,
   Sparkles,
-  HelpCircle
+  HelpCircle,
+  ShieldCheck,
+  LogIn
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -46,6 +48,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'reports', label: 'Reports & CSV Export', icon: FileSpreadsheet, category: 'Management' },
     { id: 'history', label: 'Schedule Version History', icon: History, category: 'Management' },
     { id: 'settings', label: 'Settings & XAMPP Spec', icon: Settings, category: 'Management' },
+    { id: 'system-health', label: 'System Health Diagnostics', icon: ShieldCheck, category: 'Management', badge: 'PASS' },
+    { id: 'login', label: 'Operator Access Portal', icon: LogIn, category: 'Management' },
   ];
 
   // Group items by category
@@ -122,18 +126,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* User Session Footer */}
       <div className="p-3 border-t border-slate-800 bg-[#090f1d]">
-        <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => onNavigate('login')}
+          className="w-full flex items-center justify-between hover:bg-slate-800/60 p-1.5 rounded-lg transition-colors group text-left"
+          title="Click to Switch Account or View Access Portal"
+        >
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-200 border border-slate-600">
+            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-200 border border-slate-600 group-hover:border-cyan-400 transition-colors">
               {user?.name ? user.name[0].toUpperCase() : 'U'}
             </div>
             <div className="overflow-hidden">
-              <div className="text-xs font-semibold text-slate-200 truncate">{user?.name || 'Manager'}</div>
-              <div className="text-[10px] text-cyan-400 font-mono uppercase">{user?.role || 'Manager'}</div>
+              <div className="text-xs font-semibold text-slate-200 truncate group-hover:text-cyan-300 transition-colors">{user?.name || 'Manager'}</div>
+              <div className="text-[10px] text-cyan-400 font-mono uppercase">{user?.role || 'Manager'} &middot; Switch</div>
             </div>
           </div>
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 ring-4 ring-emerald-500/20" title="Connected to Optimization Engine" />
-        </div>
+        </button>
       </div>
     </aside>
   );

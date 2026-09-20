@@ -13,7 +13,8 @@ import {
   ShieldAlert, 
   Play,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  RotateCcw
 } from 'lucide-react';
 
 interface SchedulingProps {
@@ -32,12 +33,14 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
 
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [lastResult, setLastResult] = useState<any | null>(null);
+  const [undoStatus, setUndoStatus] = useState<string | null>(null);
 
   const totalWeight = wMakespan + wDelay + wIdle + wBottleneck;
 
   const handleGenerate = async () => {
     setIsGenerating(true);
     setLastResult(null);
+    setUndoStatus(null);
     try {
       const weightsObj = {
         makespan: wMakespan / 100,
@@ -57,6 +60,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
 
   const handleDynamicReoptimize = async () => {
     setIsGenerating(true);
+    setUndoStatus(null);
     try {
       const result = await api.reoptimizeSchedule(mode, 'Floor Constraint Adjustment');
       setLastResult(result);
@@ -67,22 +71,58 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
     }
   };
 
+  const handleUndoSchedule = async () => {
+    try {
+      const prev = await api.undoSchedule();
+      setLastResult(prev);
+      onScheduleGenerated(prev);
+      setUndoStatus(`Undo applied: Reverted to schedule ${prev.version} (Makespan: ${prev.makespan}h)`);
+      setTimeout(() => setUndoStatus(null), 5000);
+    } catch (err: any) {
+      alert(err.message || 'No previous schedule version available to undo to.');
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="border-b border-slate-800 pb-4">
-        <div className="flex items-center gap-2">
-          <span className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
-            <CalendarClock className="w-5 h-5" />
-          </span>
-          <h1 className="text-xl font-bold text-white tracking-tight">
-            Dynamic DFJSSP Scheduling & Optimization Engine
-          </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+              <CalendarClock className="w-5 h-5" />
+            </span>
+            <h1 className="text-xl font-bold text-white tracking-tight">
+              Dynamic DFJSSP Scheduling & Optimization Engine
+            </h1>
+          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            Formulate multi-objective trade-offs, configure heuristic models, and optimize operation sequences.
+          </p>
         </div>
-        <p className="text-xs text-slate-400 mt-1">
-          Formulate multi-objective trade-offs, configure heuristic models, and optimize operation sequences.
-        </p>
+
+        <button
+          id="scheduling-undo-btn"
+          onClick={handleUndoSchedule}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-semibold hover:bg-amber-500/30 transition-all self-start sm:self-auto shadow-sm"
+          title="Undo to previous schedule version"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span>Undo Last Run</span>
+        </button>
       </div>
+
+      {undoStatus && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="w-4 h-4 text-amber-400" />
+            <span>{undoStatus}</span>
+          </div>
+          <button onClick={() => setUndoStatus(null)} className="text-amber-400 hover:text-white text-xs">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Solvers & Weights */}
@@ -325,13 +365,25 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
                   </div>
                 </div>
 
-                <button
-                  onClick={onNavigateToGantt}
-                  className="w-full py-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                >
-                  <span>View in Factory Gantt Timeline</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    id="btn-undo-solver-result"
+                    onClick={handleUndoSchedule}
+                    className="py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                    title="Undo to previous schedule"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Undo Run</span>
+                  </button>
+
+                  <button
+                    onClick={onNavigateToGantt}
+                    className="py-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <span>Gantt Chart</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="p-8 text-center text-slate-500 text-xs space-y-2">

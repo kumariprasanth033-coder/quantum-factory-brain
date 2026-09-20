@@ -18,7 +18,7 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
-  const { login, demoLogin, isLoading } = useAuth();
+  const { user, login, demoLogin, isLoading } = useAuth();
   const [email, setEmail] = useState('manager@quantumfactory.local');
   const [password, setPassword] = useState('password123');
   const [role, setRole] = useState<'admin' | 'manager' | 'operator'>('manager');
@@ -41,17 +41,26 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
     try {
       await login(email.trim(), password);
-      setSuccessNotice('Authentication verified. Loading factory dashboard...');
-      if (onLoginSuccess) onLoginSuccess();
+      setSuccessNotice('Authentication verified. Loading factory floor...');
+      setTimeout(() => {
+        if (onLoginSuccess) onLoginSuccess();
+      }, 400);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Invalid credentials. Use demo passwords: password123, admin123, or manager123.');
+      setErrorMessage(err.message || 'Invalid credentials. You can click any authorized account below for instant entry.');
     }
   };
 
-  const handleQuickDemo = async (targetRole: 'admin' | 'manager') => {
+  const handleQuickDemo = async (targetRole: 'admin' | 'manager' | 'operator') => {
     setErrorMessage(null);
-    const targetEmail = targetRole === 'admin' ? 'admin@quantumfactory.local' : 'manager@quantumfactory.local';
-    const targetPass = targetRole === 'admin' ? 'admin123' : 'manager123';
+    let targetEmail = 'manager@quantumfactory.local';
+    let targetPass = 'password123';
+    if (targetRole === 'admin') {
+      targetEmail = 'admin@quantumfactory.local';
+      targetPass = 'admin123';
+    } else if (targetRole === 'operator') {
+      targetEmail = 'operator@quantumfactory.local';
+      targetPass = 'password123';
+    }
     setEmail(targetEmail);
     setPassword(targetPass);
     setRole(targetRole);
@@ -59,10 +68,15 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     try {
       await login(targetEmail, targetPass);
       if (onLoginSuccess) onLoginSuccess();
-    } catch (err: any) {
+    } catch {
       demoLogin(targetRole);
       if (onLoginSuccess) onLoginSuccess();
     }
+  };
+
+  const handleGuestEnter = () => {
+    demoLogin('manager');
+    if (onLoginSuccess) onLoginSuccess();
   };
 
   return (
@@ -116,6 +130,36 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             </div>
           )}
 
+          {user && (
+            <div className="mb-5 p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-between">
+              <div className="text-xs">
+                <span className="text-slate-400 block text-[10px] uppercase font-mono">Current Session:</span>
+                <span className="font-semibold text-white">{user.name}</span>
+                <span className="text-cyan-400 ml-1 font-mono">({user.role})</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onLoginSuccess && onLoginSuccess()}
+                className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition-colors"
+              >
+                Go to Floor &rarr;
+              </button>
+            </div>
+          )}
+
+          {/* Quick Bypass Button */}
+          <div className="mb-5">
+            <button
+              type="button"
+              id="login-bypass-btn"
+              onClick={handleGuestEnter}
+              className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600/20 to-teal-600/20 hover:from-emerald-600/30 hover:to-teal-600/30 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Instant Guest Entry (No Password Required) &rarr;</span>
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
@@ -160,30 +204,42 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                 Role &amp; Privilege Tier
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   id="login-role-manager"
                   onClick={() => setRole('manager')}
-                  className={`py-2 px-3 rounded-lg text-xs font-medium border text-center transition-all ${
+                  className={`py-2 px-2 rounded-lg text-[11px] font-semibold border text-center transition-all ${
                     role === 'manager'
-                      ? 'bg-cyan-500/15 border-cyan-500 text-cyan-300 shadow-sm'
+                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-sm'
                       : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  Factory Manager
+                  Manager
+                </button>
+                <button
+                  type="button"
+                  id="login-role-operator"
+                  onClick={() => setRole('operator')}
+                  className={`py-2 px-2 rounded-lg text-[11px] font-semibold border text-center transition-all ${
+                    role === 'operator'
+                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-sm'
+                      : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Operator
                 </button>
                 <button
                   type="button"
                   id="login-role-admin"
                   onClick={() => setRole('admin')}
-                  className={`py-2 px-3 rounded-lg text-xs font-medium border text-center transition-all ${
+                  className={`py-2 px-2 rounded-lg text-[11px] font-semibold border text-center transition-all ${
                     role === 'admin'
-                      ? 'bg-cyan-500/15 border-cyan-500 text-cyan-300 shadow-sm'
+                      ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-sm'
                       : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  System Admin
+                  Admin
                 </button>
               </div>
             </div>
@@ -228,6 +284,22 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   <div className="text-[11px] text-slate-400 font-mono">manager@quantumfactory.local</div>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">
+                  Enter &rarr;
+                </span>
+              </button>
+
+              <button
+                id="quick-login-operator"
+                onClick={() => handleQuickDemo('operator')}
+                className="w-full text-left p-2.5 rounded-lg bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-500/40 transition-all group flex items-center justify-between"
+              >
+                <div>
+                  <div className="text-xs font-semibold text-slate-200 group-hover:text-emerald-300">
+                    Lead Machine Operator
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-mono">operator@quantumfactory.local</div>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">
                   Enter &rarr;
                 </span>
               </button>

@@ -1157,6 +1157,60 @@ async function startServer() {
   app.post('/api/scheduling/reoptimize', handleScheduleReoptimize);
   app.post('/api/scheduling/reoptimize.php', handleScheduleReoptimize);
 
+  const handleScheduleUndo = (req: Request, res: Response) => {
+    const { store } = getActiveStore(req);
+    if (store.schedules.length <= 1) {
+      return sendError(res, 'No earlier schedule version available to undo to. Currently at baseline schedule.', 400);
+    }
+    const undoneSchedule = store.schedules.pop();
+    const activeSchedule = store.schedules[store.schedules.length - 1];
+
+    store.alerts.unshift({
+      id: store.nextAlertId++,
+      type: 'reoptimization',
+      title: 'Schedule Undo Applied',
+      message: `Reverted from ${undoneSchedule?.version || 'latest'} back to previous schedule ${activeSchedule.version} (Makespan: ${activeSchedule.makespan}h).`,
+      severity: 'warning',
+      is_read: false,
+      created_at: new Date().toISOString()
+    });
+
+    sendSuccess(res, `Schedule undone. Reverted to ${activeSchedule.version}`, activeSchedule);
+  };
+  app.post('/api/scheduling/undo', handleScheduleUndo);
+  app.post('/api/scheduling/undo.php', handleScheduleUndo);
+  app.post('/api/scheduling/revert', handleScheduleUndo);
+
+  const handleScheduleRestore = (req: Request, res: Response) => {
+    const { store } = getActiveStore(req);
+    const scheduleId = Number(req.params.id || req.body.schedule_id);
+    const target = store.schedules.find(s => s.id === scheduleId);
+    if (!target) {
+      return sendError(res, 'Target schedule not found in history', 404);
+    }
+    const restored = {
+      ...target,
+      id: store.nextScheduleId++,
+      version: `SCH-${String(store.nextScheduleId).padStart(4, '0')}-RESTORED`,
+      created_at: new Date().toISOString()
+    };
+    store.schedules.push(restored);
+
+    store.alerts.unshift({
+      id: store.nextAlertId++,
+      type: 'reoptimization',
+      title: 'Historical Schedule Restored',
+      message: `Restored version ${target.version} as active schedule ${restored.version}.`,
+      severity: 'info',
+      is_read: false,
+      created_at: new Date().toISOString()
+    });
+
+    sendSuccess(res, `Restored schedule version ${target.version}`, restored);
+  };
+  app.post('/api/scheduling/restore/:id', handleScheduleRestore);
+  app.post('/api/scheduling/restore', handleScheduleRestore);
+
   const handleScheduleHistory = (req: Request, res: Response) => {
     const { store } = getActiveStore(req);
     sendSuccess(res, 'Schedule history fetched', store.schedules.slice(-20).reverse());

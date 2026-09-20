@@ -21,6 +21,7 @@ interface NavbarProps {
   onRefreshAll?: () => void;
   onResetDemo?: () => void;
   onNavigateToAlerts: () => void;
+  onNavigateToLogin?: () => void;
   unreadAlertsCount?: number;
 }
 
@@ -30,6 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefreshAll, 
   onResetDemo, 
   onNavigateToAlerts,
+  onNavigateToLogin,
   unreadAlertsCount 
 }) => {
   const { user, logout, demoLogin } = useAuth();
@@ -232,6 +234,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               Admin
             </button>
           </div>
+
+          {onNavigateToLogin && (
+            <button
+              id="navbar-login-btn"
+              onClick={onNavigateToLogin}
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-semibold flex items-center gap-1 transition-all"
+              title="Open Operator Authentication & Login Portal"
+            >
+              <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Login</span>
+            </button>
+          )}
         </div>
       </div>
     </header>
