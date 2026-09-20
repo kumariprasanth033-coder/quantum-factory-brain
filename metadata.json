@@ -1,0 +1,6 @@
+{
+  "name": "Quantum Factory Brain",
+  "description": "AI & Quantum-Inspired Dynamic Flexible Job-Shop Scheduling (DFJSSP) Platform with real-time re-optimization, Gantt charts, and machine analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
