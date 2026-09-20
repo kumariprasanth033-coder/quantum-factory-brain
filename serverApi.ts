@@ -1,3 +1,6 @@
+import { generateDemoDataset } from "./serverDemoData";
+import { runScheduler } from "./serverScheduler";
+export { runScheduler };
 import express, { Request, Response } from 'express';
 
 // --- DFJSSP Data Models ---
@@ -66,6 +69,8 @@ export interface ScheduleOperation {
   duration: number;
   status: string;
   delay: number;
+  eligible_machine_ids?: number[];
+  eligible_machines?: OperationMachine[];
 }
 
 export interface Schedule {
@@ -120,411 +125,7 @@ let demoStore: FactoryStore;
 let customStore: FactoryStore;
 let activeGlobalMode: 'demo' | 'custom' = 'demo';
 
-function generateDemoDataset(): FactoryStore {
-  const machines: Machine[] = [
-    { id: 1, machine_code: 'CNC-01', machine_name: '5-Axis CNC Milling Center', machine_type: 'CNC Mill', status: 'AVAILABLE', capacity: 1, location: 'Cell Alpha', maintenance_status: 'Nominal (Serviced 3d ago)', created_at: '2026-03-01T08:00:00Z' },
-    { id: 2, machine_code: 'LAT-02', machine_name: 'High-Precision CNC Lathe', machine_type: 'CNC Lathe', status: 'BUSY', capacity: 1, location: 'Cell Alpha', maintenance_status: 'Nominal', created_at: '2026-03-01T08:00:00Z' },
-    { id: 3, machine_code: 'EDM-03', machine_name: 'Wire Electrical Discharge Machine', machine_type: 'Wire EDM', status: 'AVAILABLE', capacity: 1, location: 'Cell Beta', maintenance_status: 'Nominal', created_at: '2026-03-01T08:00:00Z' },
-    { id: 4, machine_code: 'GRN-04', machine_name: 'Surface Grinding Machine', machine_type: 'Grinder', status: 'AVAILABLE', capacity: 1, location: 'Cell Beta', maintenance_status: 'Inspection Due Soon', created_at: '2026-03-01T08:00:00Z' },
-    { id: 5, machine_code: 'LSR-05', machine_name: 'Fiber Laser Cutting System', machine_type: 'Laser Cutter', status: 'AVAILABLE', capacity: 1, location: 'Cell Gamma', maintenance_status: 'Nominal', created_at: '2026-03-01T08:00:00Z' },
-    { id: 6, machine_code: 'WLD-06', machine_name: 'Robotic TIG Welding Cell', machine_type: 'Robotic Welder', status: 'MAINTENANCE', capacity: 1, location: 'Cell Gamma', maintenance_status: 'Torch head calibration in progress', created_at: '2026-03-01T08:00:00Z' },
-    { id: 7, machine_code: 'CMM-07', machine_name: 'Coordinate Measuring Machine', machine_type: 'Inspection CMM', status: 'AVAILABLE', capacity: 1, location: 'Quality Lab', maintenance_status: 'Calibrated ISO-9001', created_at: '2026-03-01T08:00:00Z' },
-    { id: 8, machine_code: 'HTR-08', machine_name: 'Vacuum Heat Treatment Furnace', machine_type: 'Furnace', status: 'AVAILABLE', capacity: 2, location: 'Thermal Area', maintenance_status: 'Nominal', created_at: '2026-03-01T08:00:00Z' },
-  ];
-
-  const jobs: Job[] = [
-    {
-      id: 101,
-      job_number: 'JOB-2026-001',
-      customer_name: 'ISRO Satish Dhawan Space Centre',
-      product_name: 'Cryogenic Upper Stage Impeller',
-      quantity: 4,
-      priority: 'URGENT',
-      due_date: '2026-03-24T18:00:00Z',
-      status: 'RUNNING',
-      estimated_processing_time: 14.5,
-      created_at: '2026-03-20T09:00:00Z',
-      operations: [
-        {
-          id: 1001,
-          job_id: 101,
-          operation_number: 'OP-10',
-          operation_name: '5-Axis Rough Contouring',
-          processing_time: 4.5,
-          sequence_number: 1,
-          priority: 'URGENT',
-          status: 'COMPLETED',
-          eligible_machines: [
-            { machine_id: 1, processing_time: 4.5, is_preferred: true, machine_code: 'CNC-01', machine_name: '5-Axis CNC Milling Center' },
-            { machine_id: 2, processing_time: 6.2, is_preferred: false, machine_code: 'LAT-02', machine_name: 'High-Precision CNC Lathe' }
-          ]
-        },
-        {
-          id: 1002,
-          job_id: 101,
-          operation_number: 'OP-20',
-          operation_name: 'Wire EDM Hub Micro-Slots',
-          processing_time: 3.8,
-          sequence_number: 2,
-          priority: 'URGENT',
-          status: 'PROCESSING',
-          eligible_machines: [
-            { machine_id: 3, processing_time: 3.8, is_preferred: true, machine_code: 'EDM-03', machine_name: 'Wire EDM' },
-            { machine_id: 5, processing_time: 5.0, is_preferred: false, machine_code: 'LSR-05', machine_name: 'Fiber Laser Cutter' }
-          ]
-        },
-        {
-          id: 1003,
-          job_id: 101,
-          operation_number: 'OP-30',
-          operation_name: 'Vacuum Stress Relief Heat Treat',
-          processing_time: 4.0,
-          sequence_number: 3,
-          priority: 'URGENT',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 8, processing_time: 4.0, is_preferred: true, machine_code: 'HTR-08', machine_name: 'Vacuum Furnace' }
-          ]
-        },
-        {
-          id: 1004,
-          job_id: 101,
-          operation_number: 'OP-40',
-          operation_name: 'CMM Blade Profile Verification',
-          processing_time: 2.2,
-          sequence_number: 4,
-          priority: 'URGENT',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 7, processing_time: 2.2, is_preferred: true, machine_code: 'CMM-07', machine_name: 'Coordinate Measuring Machine' }
-          ]
-        }
-      ]
-    },
-    {
-      id: 102,
-      job_number: 'JOB-2026-002',
-      customer_name: 'Amaravati EV Powertrain Ltd',
-      product_name: 'Permanent Magnet Rotor Shaft',
-      quantity: 50,
-      priority: 'HIGH',
-      due_date: '2026-03-25T12:00:00Z',
-      status: 'SCHEDULED',
-      estimated_processing_time: 11.2,
-      created_at: '2026-03-20T10:30:00Z',
-      operations: [
-        {
-          id: 1005,
-          job_id: 102,
-          operation_number: 'OP-10',
-          operation_name: 'Shaft High-Speed Turning',
-          processing_time: 3.5,
-          sequence_number: 1,
-          priority: 'HIGH',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 2, processing_time: 3.5, is_preferred: true, machine_code: 'LAT-02', machine_name: 'High-Precision CNC Lathe' },
-            { machine_id: 1, processing_time: 4.8, is_preferred: false, machine_code: 'CNC-01', machine_name: '5-Axis CNC Mill' }
-          ]
-        },
-        {
-          id: 1006,
-          job_id: 102,
-          operation_number: 'OP-20',
-          operation_name: 'Precision Bearing Journal Grinding',
-          processing_time: 2.8,
-          sequence_number: 2,
-          priority: 'HIGH',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 4, processing_time: 2.8, is_preferred: true, machine_code: 'GRN-04', machine_name: 'Surface Grinder' }
-          ]
-        },
-        {
-          id: 1007,
-          job_id: 102,
-          operation_number: 'OP-30',
-          operation_name: 'Induction Case Hardening',
-          processing_time: 3.2,
-          sequence_number: 3,
-          priority: 'HIGH',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 8, processing_time: 3.2, is_preferred: true, machine_code: 'HTR-08', machine_name: 'Vacuum Furnace' }
-          ]
-        },
-        {
-          id: 1008,
-          job_id: 102,
-          operation_number: 'OP-40',
-          operation_name: 'Runout & Concentricity CMM Inspection',
-          processing_time: 1.7,
-          sequence_number: 4,
-          priority: 'HIGH',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 7, processing_time: 1.7, is_preferred: true, machine_code: 'CMM-07', machine_name: 'Inspection CMM' }
-          ]
-        }
-      ]
-    },
-    {
-      id: 103,
-      job_number: 'JOB-2026-003',
-      customer_name: 'HAL Aerospace Division',
-      product_name: 'Titanium Hydraulic Manifold Block',
-      quantity: 12,
-      priority: 'HIGH',
-      due_date: '2026-03-26T17:00:00Z',
-      status: 'WAITING',
-      estimated_processing_time: 13.0,
-      created_at: '2026-03-20T11:15:00Z',
-      operations: [
-        {
-          id: 1009,
-          job_id: 103,
-          operation_number: 'OP-10',
-          operation_name: 'Face Milling & Port Drilling',
-          processing_time: 5.2,
-          sequence_number: 1,
-          priority: 'HIGH',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 1, processing_time: 5.2, is_preferred: true, machine_code: 'CNC-01', machine_name: '5-Axis CNC Mill' },
-            { machine_id: 4, processing_time: 7.0, is_preferred: false, machine_code: 'GRN-04', machine_name: 'Surface Grinder' }
-          ]
-        },
-        {
-          id: 1010,
-          job_id: 103,
-          operation_number: 'OP-20',
-          operation_name: 'Internal Valve Cavity Wire EDM',
-          processing_time: 4.8,
-          sequence_number: 2,
-          priority: 'HIGH',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 3, processing_time: 4.8, is_preferred: true, machine_code: 'EDM-03', machine_name: 'Wire EDM' }
-          ]
-        },
-        {
-          id: 1011,
-          job_id: 103,
-          operation_number: 'OP-30',
-          operation_name: 'Pressure Port Laser Marking & Seal Prep',
-          processing_time: 1.5,
-          sequence_number: 3,
-          priority: 'HIGH',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 5, processing_time: 1.5, is_preferred: true, machine_code: 'LSR-05', machine_name: 'Fiber Laser Cutter' }
-          ]
-        },
-        {
-          id: 1012,
-          job_id: 103,
-          operation_number: 'OP-40',
-          operation_name: 'Hydrostatic Pressure & CMM Final Test',
-          processing_time: 1.5,
-          sequence_number: 4,
-          priority: 'HIGH',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 7, processing_time: 1.5, is_preferred: true, machine_code: 'CMM-07', machine_name: 'Inspection CMM' }
-          ]
-        }
-      ]
-    },
-    {
-      id: 104,
-      job_number: 'JOB-2026-004',
-      customer_name: 'Dr. Reddy Labs MedTech',
-      product_name: 'Surgical Robotic End-Effector Joint',
-      quantity: 25,
-      priority: 'MEDIUM',
-      due_date: '2026-03-27T16:00:00Z',
-      status: 'WAITING',
-      estimated_processing_time: 9.8,
-      created_at: '2026-03-20T14:00:00Z',
-      operations: [
-        {
-          id: 1013,
-          job_id: 104,
-          operation_number: 'OP-10',
-          operation_name: 'Micro-Turned Pivot Studs',
-          processing_time: 2.8,
-          sequence_number: 1,
-          priority: 'MEDIUM',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 2, processing_time: 2.8, is_preferred: true, machine_code: 'LAT-02', machine_name: 'CNC Lathe' },
-            { machine_id: 1, processing_time: 3.5, is_preferred: false, machine_code: 'CNC-01', machine_name: 'CNC Mill' }
-          ]
-        },
-        {
-          id: 1014,
-          job_id: 104,
-          operation_number: 'OP-20',
-          operation_name: 'Micron-Tolerance Surface Lapping',
-          processing_time: 3.0,
-          sequence_number: 2,
-          priority: 'MEDIUM',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 4, processing_time: 3.0, is_preferred: true, machine_code: 'GRN-04', machine_name: 'Surface Grinder' }
-          ]
-        },
-        {
-          id: 1015,
-          job_id: 104,
-          operation_number: 'OP-30',
-          operation_name: 'Laser Serialization & Passivation',
-          processing_time: 2.0,
-          sequence_number: 3,
-          priority: 'MEDIUM',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 5, processing_time: 2.0, is_preferred: true, machine_code: 'LSR-05', machine_name: 'Fiber Laser Cutter' }
-          ]
-        },
-        {
-          id: 1016,
-          job_id: 104,
-          operation_number: 'OP-40',
-          operation_name: 'Biocompatibility Optical CMM Scan',
-          processing_time: 2.0,
-          sequence_number: 4,
-          priority: 'MEDIUM',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 7, processing_time: 2.0, is_preferred: true, machine_code: 'CMM-07', machine_name: 'Inspection CMM' }
-          ]
-        }
-      ]
-    },
-    {
-      id: 105,
-      job_number: 'JOB-2026-005',
-      customer_name: 'Larsen & Toubro Heavy Fab',
-      product_name: 'Turbine Exhaust Heat Exchanger Flange',
-      quantity: 8,
-      priority: 'LOW',
-      due_date: '2026-03-29T12:00:00Z',
-      status: 'WAITING',
-      estimated_processing_time: 15.0,
-      created_at: '2026-03-20T15:45:00Z',
-      operations: [
-        {
-          id: 1017,
-          job_id: 105,
-          operation_number: 'OP-10',
-          operation_name: 'Laser Plate Blanking',
-          processing_time: 4.0,
-          sequence_number: 1,
-          priority: 'LOW',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 5, processing_time: 4.0, is_preferred: true, machine_code: 'LSR-05', machine_name: 'Fiber Laser Cutter' }
-          ]
-        },
-        {
-          id: 1018,
-          job_id: 105,
-          operation_number: 'OP-20',
-          operation_name: 'Bolt Circle CNC Drilling',
-          processing_time: 4.5,
-          sequence_number: 2,
-          priority: 'LOW',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 1, processing_time: 4.5, is_preferred: true, machine_code: 'CNC-01', machine_name: '5-Axis CNC Mill' },
-            { machine_id: 2, processing_time: 5.8, is_preferred: false, machine_code: 'LAT-02', machine_name: 'CNC Lathe' }
-          ]
-        },
-        {
-          id: 1019,
-          job_id: 105,
-          operation_number: 'OP-30',
-          operation_name: 'Sealing Face Precision Grind',
-          processing_time: 3.5,
-          sequence_number: 3,
-          priority: 'LOW',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 4, processing_time: 3.5, is_preferred: true, machine_code: 'GRN-04', machine_name: 'Surface Grinder' }
-          ]
-        },
-        {
-          id: 1020,
-          job_id: 105,
-          operation_number: 'OP-40',
-          operation_name: 'Dimensional Quality Sign-off',
-          processing_time: 3.0,
-          sequence_number: 4,
-          priority: 'LOW',
-          status: 'PENDING',
-          eligible_machines: [
-            { machine_id: 7, processing_time: 3.0, is_preferred: true, machine_code: 'CMM-07', machine_name: 'Inspection CMM' }
-          ]
-        }
-      ]
-    }
-  ];
-
-  const initialSchedule = runScheduler(jobs, machines, 'quantum_inspired');
-
-  const alerts: Alert[] = [
-    {
-      id: 1,
-      type: 'maintenance',
-      title: 'Machine WLD-06 Scheduled Calibration',
-      message: 'Robotic TIG Welding Cell is offline for routine torch head re-alignment until 15:00 UTC.',
-      severity: 'warning',
-      is_read: false,
-      created_at: '2026-03-20T08:30:00Z'
-    },
-    {
-      id: 2,
-      type: 'urgent_job',
-      title: 'Urgent Order: ISRO Impeller Active',
-      message: 'Job JOB-2026-001 has highest dispatch priority. Scheduled on CNC-01 and EDM-03.',
-      severity: 'danger',
-      is_read: false,
-      created_at: '2026-03-20T09:05:00Z'
-    },
-    {
-      id: 3,
-      type: 'quantum_optimization',
-      title: 'Quantum-Inspired Schedule Nominal',
-      message: 'Baseline makespan computed at 34.2h across 8 work centers with 84.6% average utilization.',
-      severity: 'success',
-      is_read: true,
-      created_at: '2026-03-20T09:15:00Z'
-    }
-  ];
-
-  return {
-    profile: {
-      factory_code: 'QFB-AMR-DEMO',
-      factory_name: 'Amaravati Precision Quantum Aerospace Center',
-      industry: 'Aerospace, Defense & Medical Device Prototyping',
-      location: 'Amaravati Quantum Valley, Andhra Pradesh, India',
-      contact_email: 'ops-director@quantumfactory.local',
-      working_hours: '24/7 Continuous Shift Schedule (3x 8h shifts)',
-      time_zone: 'Asia/Kolkata (IST, UTC+5:30)',
-      is_demo: true,
-    },
-    machines,
-    jobs,
-    schedules: [initialSchedule],
-    alerts,
-    nextMachineId: 9,
-    nextJobId: 106,
-    nextOpId: 1021,
-    nextScheduleId: 2,
-    nextAlertId: 4,
-  };
-}
+// generateDemoDataset imported from ./serverDemoData
 
 function initCustomFactory(): FactoryStore {
   return {
@@ -560,174 +161,7 @@ function initCustomFactory(): FactoryStore {
   };
 }
 
-export function runScheduler(
-  jobs: Job[],
-  machines: Machine[],
-  mode: 'classical' | 'quantum_inspired' | 'hybrid' = 'quantum_inspired',
-  weights?: Record<string, number>
-): Schedule {
-  const onlineMachines = machines.filter(m => m.status !== 'OFFLINE');
-  if (onlineMachines.length === 0) {
-    return {
-      id: Date.now(),
-      version: `SCH-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(Math.floor(Math.random()*9000)+1000)}`,
-      mode,
-      makespan: 0,
-      utilization: 0,
-      idle_time: 0,
-      delayed_jobs: 0,
-      created_at: new Date().toISOString(),
-      schedule_operations: [],
-    };
-  }
-
-  const activeJobs = jobs.filter(j => j.status !== 'CANCELLED');
-  const machineAvailability: Record<number, number> = {};
-  onlineMachines.forEach(m => {
-    machineAvailability[m.id] = m.status === 'MAINTENANCE' ? 4.0 : 0.0;
-  });
-
-  const priorityRank: Record<string, number> = {
-    URGENT: 4,
-    HIGH: 3,
-    MEDIUM: 2,
-    LOW: 1
-  };
-
-  const sortedJobs = [...activeJobs].sort((a, b) => {
-    if (mode === 'classical') {
-      const pDiff = (priorityRank[b.priority] || 2) - (priorityRank[a.priority] || 2);
-      if (pDiff !== 0) return pDiff;
-      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-    }
-    const dueA = new Date(a.due_date).getTime();
-    const dueB = new Date(b.due_date).getTime();
-    const pWeight = (priorityRank[b.priority] || 2) * 1.5;
-    return (dueA - dueB) - pWeight * 10000;
-  });
-
-  const scheduledOps: ScheduleOperation[] = [];
-  let opScheduleCounter = 1;
-
-  for (const job of sortedJobs) {
-    const ops = [...(job.operations || [])].sort((a, b) => a.sequence_number - b.sequence_number);
-    let lastJobEndTime = 0.0;
-
-    for (const op of ops) {
-      const eligible = op.eligible_machines && op.eligible_machines.length > 0
-        ? op.eligible_machines.filter(em => onlineMachines.some(om => om.id === em.machine_id))
-        : onlineMachines.map(m => ({
-            machine_id: m.id,
-            processing_time: op.processing_time,
-            is_preferred: true,
-            machine_code: m.machine_code,
-            machine_name: m.machine_name
-          }));
-
-      const candidateList = eligible.length > 0 ? eligible : [
-        {
-          machine_id: onlineMachines[0].id,
-          processing_time: op.processing_time,
-          is_preferred: true,
-          machine_code: onlineMachines[0].machine_code,
-          machine_name: onlineMachines[0].machine_name
-        }
-      ];
-
-      let bestScore = Infinity;
-      let chosenMachineId = candidateList[0].machine_id;
-      let duration = candidateList[0].processing_time;
-
-      for (const cand of candidateList) {
-        const earliestStart = Math.max(machineAvailability[cand.machine_id] || 0.0, lastJobEndTime);
-        const estEnd = earliestStart + cand.processing_time;
-        let candScore = estEnd;
-
-        if (mode === 'quantum_inspired') {
-          const prefBonus = cand.is_preferred ? 0.85 : 1.0;
-          const currentLoad = machineAvailability[cand.machine_id] || 0.0;
-          candScore = (earliestStart * 0.4 + estEnd * 0.6 + currentLoad * 0.2) * prefBonus;
-        } else if (mode === 'hybrid') {
-          const prefBonus = cand.is_preferred ? 0.90 : 1.0;
-          candScore = (earliestStart * 0.5 + estEnd * 0.5) * prefBonus;
-        }
-
-        if (candScore < bestScore) {
-          bestScore = candScore;
-          chosenMachineId = cand.machine_id;
-          duration = cand.processing_time;
-        }
-      }
-
-      const startTime = Math.max(machineAvailability[chosenMachineId] || 0.0, lastJobEndTime);
-      const endTime = Number((startTime + duration).toFixed(2));
-      machineAvailability[chosenMachineId] = endTime;
-      lastJobEndTime = endTime;
-
-      const mInfo = onlineMachines.find(m => m.id === chosenMachineId);
-
-      scheduledOps.push({
-        id: opScheduleCounter++,
-        schedule_id: 1,
-        job_id: job.id,
-        job_number: job.job_number,
-        job_name: job.product_name,
-        priority: job.priority,
-        due_date: job.due_date,
-        operation_id: op.id,
-        operation_name: op.operation_name,
-        sequence_number: op.sequence_number,
-        machine_id: chosenMachineId,
-        machine_code: mInfo?.machine_code || `M0${chosenMachineId}`,
-        machine_name: mInfo?.machine_name || `Machine ${chosenMachineId}`,
-        start_time: Number(startTime.toFixed(2)),
-        end_time: endTime,
-        duration: Number(duration.toFixed(2)),
-        status: 'SCHEDULED',
-        delay: 0.0,
-      });
-    }
-  }
-
-  let makespan = 0.0;
-  const busyTimeByMachine: Record<number, number> = {};
-  onlineMachines.forEach(m => { busyTimeByMachine[m.id] = 0.0; });
-
-  scheduledOps.forEach(so => {
-    if (so.end_time > makespan) makespan = so.end_time;
-    busyTimeByMachine[so.machine_id] = (busyTimeByMachine[so.machine_id] || 0) + so.duration;
-  });
-
-  const totalCapacity = onlineMachines.length * Math.max(makespan, 1.0);
-  const totalBusy = Object.values(busyTimeByMachine).reduce((acc, v) => acc + v, 0);
-  const idleTime = Math.max(0.0, Number((totalCapacity - totalBusy).toFixed(2)));
-  const utilization = totalCapacity > 0 ? Number(((totalBusy / totalCapacity) * 100).toFixed(1)) : 0.0;
-
-  let finalMakespan = makespan;
-  let finalUtil = utilization;
-  if (mode === 'quantum_inspired') {
-    finalMakespan = Number((makespan * 0.92).toFixed(1));
-    finalUtil = Math.min(96.0, Number((utilization * 1.08).toFixed(1)));
-  } else if (mode === 'hybrid') {
-    finalMakespan = Number((makespan * 0.95).toFixed(1));
-    finalUtil = Math.min(92.0, Number((utilization * 1.04).toFixed(1)));
-  }
-
-  const delayedJobs = Math.max(0, Math.round(activeJobs.length * (mode === 'classical' ? 0.20 : mode === 'hybrid' ? 0.12 : 0.05)));
-
-  return {
-    id: Date.now(),
-    version: `SCH-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${String(Math.floor(Math.random()*9000)+1000)}`,
-    mode,
-    makespan: finalMakespan,
-    utilization: finalUtil,
-    idle_time: idleTime,
-    delayed_jobs: delayedJobs,
-    objective_weights: weights,
-    created_at: new Date().toISOString(),
-    schedule_operations: scheduledOps,
-  };
-}
+// runScheduler imported and exported from ./serverScheduler
 
 // Initialize datasets on boot
 demoStore = generateDemoDataset();
@@ -1393,6 +827,78 @@ export function createApiApp(): express.Express {
   app.get('/api/scheduling/active', handleScheduleActive);
   app.get('/api/scheduling/active.php', handleScheduleActive);
 
+  // Gantt Chart Schedule Operations Endpoint
+  const handleScheduleGantt = (req: Request, res: Response) => {
+    const { store } = getActiveStore(req);
+
+    // Auto-populate demo dataset if machines or jobs are empty to ensure actual operation data
+    if (store.machines.length === 0 || store.jobs.length === 0) {
+      const demo = generateDemoDataset();
+      store.machines = demo.machines;
+      store.jobs = demo.jobs;
+      store.schedules = demo.schedules;
+    }
+
+    // Auto-generate schedule if no schedule exists in store
+    if (!store.schedules || store.schedules.length === 0) {
+      const schedule = runScheduler(store.jobs, store.machines, 'quantum_inspired');
+      store.schedules.push(schedule);
+    }
+
+    const activeSchedule = store.schedules[store.schedules.length - 1];
+    let operations = activeSchedule ? (activeSchedule.schedule_operations || []) : [];
+
+    // Optional query parameter filtering
+    if (req.query.machine_id) {
+      const mid = Number(req.query.machine_id);
+      operations = operations.filter(o => o.machine_id === mid);
+    } else if (req.query.machine_code) {
+      const mcode = String(req.query.machine_code).toUpperCase();
+      operations = operations.filter(o => o.machine_code === mcode);
+    }
+
+    if (req.query.job_id) {
+      const jid = Number(req.query.job_id);
+      operations = operations.filter(o => o.job_id === jid);
+    }
+
+    if (req.query.priority) {
+      const p = String(req.query.priority).toUpperCase();
+      operations = operations.filter(o => o.priority === p);
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    res.json({
+      success: true,
+      message: 'Gantt schedule operation data retrieved successfully',
+      data: {
+        schedule_id: activeSchedule ? activeSchedule.id : 1,
+        version: activeSchedule ? activeSchedule.version : 'SCH-GANTT-001',
+        mode: activeSchedule ? activeSchedule.mode : 'quantum_inspired',
+        makespan: activeSchedule ? activeSchedule.makespan : 21.9,
+        utilization: activeSchedule ? activeSchedule.utilization : 87.4,
+        idle_time: activeSchedule ? activeSchedule.idle_time : 0,
+        delayed_jobs: activeSchedule ? activeSchedule.delayed_jobs : 0,
+        schedule: activeSchedule,
+        operations: operations,
+        schedule_operations: operations,
+        machines: store.machines,
+        total_operations: operations.length,
+      },
+      operations: operations,
+      schedule_operations: operations,
+      machines: store.machines,
+      schedule: activeSchedule,
+      makespan: activeSchedule ? activeSchedule.makespan : 21.9,
+      utilization: activeSchedule ? activeSchedule.utilization : 87.4,
+      total_operations: operations.length,
+    });
+  };
+  app.get('/api/scheduling/gantt', handleScheduleGantt);
+  app.get('/api/scheduling/gantt.php', handleScheduleGantt);
+  app.post('/api/scheduling/gantt', handleScheduleGantt);
+  app.post('/api/scheduling/gantt.php', handleScheduleGantt);
+
   const handleScheduleGenerate = (req: Request, res: Response) => {
     const { store } = getActiveStore(req);
     const { mode = 'quantum_inspired', weights } = req.body;
@@ -1533,6 +1039,207 @@ export function createApiApp(): express.Express {
   };
   app.post('/api/scheduling/restore/:id', handleScheduleRestore);
   app.post('/api/scheduling/restore', handleScheduleRestore);
+
+  // Drag-and-drop / manual reallocation of scheduled operation
+  const handleScheduleUpdateOperation = (req: Request, res: Response) => {
+    const { store } = getActiveStore(req);
+    const opId = Number(req.body.id || req.body.schedule_operation_id || req.body.operation_id);
+    const targetMachineId = Number(req.body.target_machine_id || req.body.machine_id);
+    const targetStartTime = req.body.target_start_time !== undefined ? Number(req.body.target_start_time) : undefined;
+    const autoShift = Boolean(req.body.auto_shift);
+
+    if (!store.schedules || store.schedules.length === 0) {
+      return sendError(res, 'No active schedule available. Please generate or load a schedule first.', 400);
+    }
+
+    const currentSchedule = store.schedules[store.schedules.length - 1];
+    const opIndex = currentSchedule.schedule_operations.findIndex(o => o.id === opId || o.operation_id === opId);
+    if (opIndex === -1) {
+      return sendError(res, `Schedule operation with ID ${opId} not found in active schedule.`, 404);
+    }
+
+    const op = currentSchedule.schedule_operations[opIndex];
+    const targetMachine = store.machines.find(m => m.id === targetMachineId);
+    if (!targetMachine) {
+      return sendError(res, `Target machine ID ${targetMachineId} does not exist.`, 404);
+    }
+
+    // 1. Check machine status (maintenance/offline)
+    if (targetMachine.status === 'OFFLINE') {
+      return sendError(res, `Rejection: Machine ${targetMachine.machine_code} (${targetMachine.machine_name}) is OFFLINE and cannot accept operations.`, 400, 'MACHINE_OFFLINE');
+    }
+
+    // 2. Validate machine eligibility
+    const job = store.jobs.find(j => j.id === op.job_id);
+    const jobOp = job?.operations?.find(o => o.id === op.operation_id || o.sequence_number === op.sequence_number);
+    
+    const eligibleMachinesList = jobOp?.eligible_machines || op.eligible_machines || [];
+    let isEligible = false;
+    let newDuration = op.duration;
+
+    if (eligibleMachinesList.length > 0) {
+      const match = eligibleMachinesList.find(em => em.machine_id === targetMachineId);
+      if (match) {
+        isEligible = true;
+        newDuration = match.processing_time || op.duration;
+      }
+    } else if (op.eligible_machine_ids && op.eligible_machine_ids.length > 0) {
+      isEligible = op.eligible_machine_ids.includes(targetMachineId);
+    } else {
+      isEligible = true;
+    }
+
+    if (!isEligible) {
+      const eligibleCodes = eligibleMachinesList.map(em => em.machine_code || `M0${em.machine_id}`).join(', ') || 'None listed';
+      return sendError(
+        res,
+        `Machine Incompatible: ${targetMachine.machine_name} (${targetMachine.machine_code}) cannot perform ${op.operation_name}. Eligible machines: ${eligibleCodes}.`,
+        400,
+        'INELIGIBLE_MACHINE'
+      );
+    }
+
+    // Determine proposed start time
+    let proposedStart = targetStartTime !== undefined ? Math.max(0, Number(targetStartTime.toFixed(2))) : op.start_time;
+
+    // Check if target machine has maintenance window
+    if (targetMachine.status === 'MAINTENANCE' && proposedStart < 4.0) {
+      return sendError(
+        res,
+        `Maintenance Lockout: ${targetMachine.machine_code} is under scheduled maintenance (0.0h - 4.0h). Operations can only start at or after 4.0h.`,
+        400,
+        'MAINTENANCE_LOCKOUT'
+      );
+    }
+
+    // 3. Check sequence/precedence constraints within same job
+    const otherJobOps = currentSchedule.schedule_operations.filter(o => o.job_id === op.job_id && o.id !== op.id);
+    for (const priorOp of otherJobOps) {
+      if (priorOp.sequence_number < op.sequence_number) {
+        if (proposedStart < priorOp.end_time) {
+          return sendError(
+            res,
+            `Precedence Violation: Operation ${op.operation_name} (Seq ${op.sequence_number}) cannot start at ${proposedStart}h because preceding operation "${priorOp.operation_name}" (Seq ${priorOp.sequence_number}) completes at ${priorOp.end_time}h.`,
+            400,
+            'PRECEDENCE_VIOLATION'
+          );
+        }
+      }
+      if (priorOp.sequence_number > op.sequence_number) {
+        if (proposedStart + newDuration > priorOp.start_time) {
+          if (!autoShift) {
+            return sendError(
+              res,
+              `Precedence Conflict: Moving ${op.operation_name} to end at ${Number((proposedStart + newDuration).toFixed(2))}h conflicts with succeeding operation "${priorOp.operation_name}" which starts at ${priorOp.start_time}h.`,
+              400,
+              'PRECEDENCE_CONFLICT'
+            );
+          }
+        }
+      }
+    }
+
+    // 4. Overlap detection on target machine
+    const machineOps = currentSchedule.schedule_operations.filter(o => o.machine_id === targetMachineId && o.id !== op.id);
+    const proposedEnd = Number((proposedStart + newDuration).toFixed(2));
+
+    const overlapping = machineOps.find(o => {
+      return (proposedStart < o.end_time && proposedEnd > o.start_time);
+    });
+
+    if (overlapping) {
+      if (!autoShift) {
+        return sendError(
+          res,
+          `Machine Busy / Overlap Conflict: ${targetMachine.machine_code} is already allocated to ${overlapping.job_number} (${overlapping.operation_name}) from ${overlapping.start_time}h to ${overlapping.end_time}h.`,
+          400,
+          'MACHINE_OVERLAP'
+        );
+      } else {
+        proposedStart = overlapping.end_time;
+      }
+    }
+
+    // 5. SUCCESS: update active schedule
+    const updatedOps: ScheduleOperation[] = currentSchedule.schedule_operations.map(o => {
+      if (o.id === op.id) {
+        return {
+          ...o,
+          machine_id: targetMachine.id,
+          machine_code: targetMachine.machine_code,
+          machine_name: targetMachine.machine_name,
+          start_time: proposedStart,
+          end_time: Number((proposedStart + newDuration).toFixed(2)),
+          duration: newDuration,
+          status: 'SCHEDULED'
+        };
+      }
+      return o;
+    });
+
+    // Recalculate makespan & metrics
+    let newMakespan = 0;
+    const busyTimeByMachine: Record<number, number> = {};
+    store.machines.forEach(m => { busyTimeByMachine[m.id] = 0; });
+
+    updatedOps.forEach(so => {
+      if (so.end_time > newMakespan) newMakespan = so.end_time;
+      busyTimeByMachine[so.machine_id] = (busyTimeByMachine[so.machine_id] || 0) + so.duration;
+    });
+
+    const totalCap = store.machines.length * Math.max(newMakespan, 1.0);
+    const totalBusy = Object.values(busyTimeByMachine).reduce((acc, v) => acc + v, 0);
+    const newIdle = Math.max(0, Number((totalCap - totalBusy).toFixed(2)));
+    const newUtil = totalCap > 0 ? Number(((totalBusy / totalCap) * 100).toFixed(1)) : 0;
+
+    const newVersionNum = store.nextScheduleId++;
+    const newSchedule: Schedule = {
+      ...currentSchedule,
+      id: newVersionNum,
+      version: `SCH-DND-${String(newVersionNum).padStart(4, '0')}`,
+      makespan: Number(newMakespan.toFixed(2)),
+      utilization: newUtil,
+      idle_time: newIdle,
+      created_at: new Date().toISOString(),
+      schedule_operations: updatedOps,
+    };
+
+    store.schedules.push(newSchedule);
+
+    store.alerts.unshift({
+      id: store.nextAlertId++,
+      type: 'reoptimization',
+      title: `Operation Reallocated: ${op.job_number} -> ${targetMachine.machine_code}`,
+      message: `Operation "${op.operation_name}" moved to ${targetMachine.machine_code} at ${proposedStart}h-${Number((proposedStart + newDuration).toFixed(2))}h. Makespan is now ${newSchedule.makespan}h.`,
+      severity: 'info',
+      is_read: false,
+      created_at: new Date().toISOString()
+    });
+
+    sendSuccess(res, `Operation ${op.job_number} - ${op.operation_name} successfully reallocated to ${targetMachine.machine_code}.`, {
+      schedule: newSchedule,
+      updated_operation: updatedOps.find(o => o.id === op.id),
+      makespan: newSchedule.makespan,
+      utilization: newSchedule.utilization,
+    });
+  };
+  app.post('/api/scheduling/update-operation', handleScheduleUpdateOperation);
+  app.post('/api/scheduling/update-operation.php', handleScheduleUpdateOperation);
+  app.post('/api/scheduling/move-operation', handleScheduleUpdateOperation);
+
+  const handleScheduleSeed = (req: Request, res: Response) => {
+    const { store } = getActiveStore(req);
+    if (store.machines.length === 0 || store.jobs.length === 0) {
+      const demo = generateDemoDataset();
+      store.machines = demo.machines;
+      store.jobs = demo.jobs;
+    }
+    const schedule = runScheduler(store.jobs, store.machines, 'quantum_inspired');
+    store.schedules.push(schedule);
+    sendSuccess(res, 'Demo schedule loaded successfully', schedule);
+  };
+  app.post('/api/scheduling/seed', handleScheduleSeed);
+  app.post('/api/scheduling/seed.php', handleScheduleSeed);
 
   const handleScheduleHistory = (req: Request, res: Response) => {
     const { store } = getActiveStore(req);

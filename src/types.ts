@@ -81,6 +81,8 @@ export interface ScheduleOperation {
   duration: number;
   status: string;
   delay: number;
+  eligible_machine_ids?: number[];
+  eligible_machines?: { machine_id: number; machine_code?: string; machine_name?: string }[];
 }
 
 export interface Schedule {

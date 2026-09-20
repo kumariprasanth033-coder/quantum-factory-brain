@@ -266,6 +266,35 @@ export const api = {
     }),
   getScheduleHistory: () =>
     request<Schedule[]>('/scheduling/history'),
+  getActiveSchedule: () =>
+    request<Schedule>('/scheduling/active'),
+  getGanttSchedule: (params?: { machine_id?: number; job_id?: number; priority?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.machine_id) q.set('machine_id', String(params.machine_id));
+    if (params?.job_id) q.set('job_id', String(params.job_id));
+    if (params?.priority) q.set('priority', params.priority);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return request<any>(`/scheduling/gantt.php${qs}`);
+  },
+  updateScheduleOperation: (data: {
+    operation_id?: number;
+    schedule_operation_id?: number;
+    id?: number;
+    target_machine_id: number;
+    target_start_time?: number;
+    auto_shift?: boolean;
+  }) =>
+    request<{
+      schedule: Schedule;
+      updated_operation: any;
+      makespan: number;
+      utilization: number;
+    }>('/scheduling/update-operation', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  seedSchedule: () =>
+    request<Schedule>('/scheduling/seed', { method: 'POST' }),
   undoSchedule: () =>
     request<Schedule>('/scheduling/undo', { method: 'POST' }),
   restoreSchedule: (id: number) =>

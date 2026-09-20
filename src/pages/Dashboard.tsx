@@ -327,6 +327,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenWhatIf }
           scheduleOperations={latestSchedule?.schedule_operations || []}
           machines={machines}
           makespan={metrics.makespan_hours}
+          onLoadDemoFactory={loadData}
+          onScheduleUpdated={loadData}
         />
       </div>
 
