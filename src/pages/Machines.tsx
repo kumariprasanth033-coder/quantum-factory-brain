@@ -100,7 +100,7 @@ export const Machines: React.FC<MachinesProps> = ({ onTriggerReoptimize }) => {
     setFormType(m.machine_type);
     setFormCapacity(m.capacity);
     setFormLocation(m.location);
-    setFormMaint(m.maintenance_status);
+    setFormMaint(m.maintenance_status || 'NOMINAL');
     setFormStatus(m.status);
     setIsModalOpen(true);
   };

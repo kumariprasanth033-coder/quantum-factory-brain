@@ -22,7 +22,7 @@ export interface Machine {
   status: MachineStatus;
   capacity: number;
   location: string;
-  maintenance_status: string;
+  maintenance_status?: string;
   created_at?: string;
   active_tasks?: number;
   scheduled_workload_hours?: number;
@@ -90,6 +90,7 @@ export interface ScheduleOperation {
 
 export interface Schedule {
   id: number;
+  schedule_id?: number;
   version: string;
   mode: SchedulingMode;
   scheduling_mode?: SchedulingMode;

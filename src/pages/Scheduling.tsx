@@ -54,7 +54,19 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
       };
       const result = await api.generateSchedule(mode, weightsObj);
       setLastResult(result);
-      onScheduleGenerated(result);
+      const scheduleObj: Schedule = {
+        id: result.schedule_id || result.id || 1,
+        version: result.version || 'SCH-OPT',
+        mode: result.mode || mode,
+        makespan: result.makespan,
+        utilization: result.utilization,
+        idle_time: result.idle_time,
+        delayed_jobs: result.delayed_jobs,
+        execution_time_ms: result.execution_time_ms,
+        created_at: result.created_at || new Date().toISOString(),
+        schedule_operations: result.schedule_operations || [],
+      };
+      onScheduleGenerated(scheduleObj);
     } catch (err: any) {
       setErrorMessage(getApiErrorMessage(err) || 'Scheduling engine failed');
     } finally {

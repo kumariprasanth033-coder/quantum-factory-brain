@@ -27,14 +27,17 @@ try {
     }
 } catch (Throwable $e) {
     $dbStatus = 'disconnected';
-    $dbMessage = $e->getMessage();
+    // Sanitize database error to never leak credentials, host, or stack trace
+    $dbMessage = 'Database connection failed. Please verify remote MySQL environment configuration.';
 }
 
+$isHealthy = ($dbStatus === 'connected');
+
 Response::json(
-    $dbStatus === 'connected',
-    $dbStatus === 'connected' ? 'Quantum Factory Brain API is healthy' : 'API running with database warning',
+    $isHealthy,
+    $isHealthy ? 'Quantum Factory Brain API is healthy' : 'Database connection failed',
     [
-        'status' => $dbStatus === 'connected' ? 'healthy' : 'degraded',
+        'api' => 'ok',
         'database' => $dbStatus,
         'database_detail' => $dbMessage,
         'app_name' => defined('APP_NAME') ? APP_NAME : 'Quantum Factory Brain',
@@ -44,5 +47,8 @@ Response::json(
         'runtime' => 'PHP ' . PHP_VERSION,
         'server_time_utc' => gmdate('Y-m-d H:i:s')
     ],
-    $dbStatus === 'connected' ? 200 : 200
+    $isHealthy ? 200 : 503,
+    $isHealthy ? null : 'DB_CONNECTION_ERROR',
+    $isHealthy ? null : ['status' => 'disconnected']
 );
+

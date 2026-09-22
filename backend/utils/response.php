@@ -6,18 +6,29 @@
 declare(strict_types=1);
 
 class Response {
+    public static function getRequestId(): string {
+        static $reqId = null;
+        if ($reqId === null) {
+            $reqId = 'QFB-' . date('Ymd') . '-' . substr(bin2hex(random_bytes(4)), 0, 8);
+        }
+        return $reqId;
+    }
+
     public static function json(bool $success, string $message, mixed $data = null, int $statusCode = 200, ?string $errorCode = null, mixed $details = null): void {
         header('Content-Type: application/json; charset=utf-8');
         header('Access-Control-Allow-Origin: *');
         header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
         
+        $reqId = self::getRequestId();
+        header('X-Request-Id: ' . $reqId);
         http_response_code($statusCode);
 
         $payload = [
             'success' => $success,
             'message' => $message,
             'data'    => $data,
+            'request_id' => $reqId,
         ];
 
         if (!$success) {

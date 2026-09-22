@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { CsvImportType, CsvPreviewValidationResult, CsvImportCommitResult } from '../types';
+import { getApiErrorMessage } from '../utils/errorParser';
 
 interface CsvImportModalProps {
   isOpen: boolean;
@@ -112,7 +113,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
       setPreviewData(preview);
       setStep('preview');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Validation failed. Please verify CSV columns.');
+      setErrorMessage(getApiErrorMessage(err) || 'Validation failed. Please verify CSV columns.');
     } finally {
       setIsLoading(false);
     }
@@ -155,7 +156,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
       setStep('success');
       onImportSuccess(result);
     } catch (err: any) {
-      setErrorMessage('Import failed: ' + (err.message || 'Transaction rolled back.'));
+      setErrorMessage(getApiErrorMessage(err) || 'Import failed: Transaction rolled back.');
     } finally {
       setIsLoading(false);
     }

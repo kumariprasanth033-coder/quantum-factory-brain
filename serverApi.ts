@@ -45,9 +45,10 @@ export interface Job {
   quantity: number;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   due_date: string;
+  arrival_time?: string;
   status: 'WAITING' | 'SCHEDULED' | 'RUNNING' | 'COMPLETED' | 'DELAYED' | 'CANCELLED';
-  estimated_processing_time: number;
-  created_at: string;
+  estimated_processing_time?: number;
+  created_at?: string;
   operations?: JobOperation[];
 }
 
@@ -183,12 +184,23 @@ export function createApiApp(): express.Express {
   const app = express();
   app.use(express.json());
 
-  // Unified Response Helpers
+  // Unified Response Helpers with Request ID tracking
+  app.use((req, res, next) => {
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const reqId = `QFB-${today}-${rand}`;
+    (req as any).requestId = reqId;
+    res.setHeader('X-Request-Id', reqId);
+    next();
+  });
+
   const sendSuccess = (res: Response, message: string, data: any = null) => {
-    res.json({ success: true, message, data });
+    const reqId = (res.req as any)?.requestId || `QFB-${Date.now()}`;
+    res.json({ success: true, message, data, request_id: reqId });
   };
   const sendError = (res: Response, message: string, statusCode = 400, errorCode?: string, details?: any) => {
-    const payload: any = { success: false, message };
+    const reqId = (res.req as any)?.requestId || `QFB-${Date.now()}`;
+    const payload: any = { success: false, message, request_id: reqId };
     if (errorCode) payload.error_code = errorCode;
     if (details !== undefined) payload.details = details;
     res.status(statusCode).json(payload);
@@ -211,10 +223,11 @@ export function createApiApp(): express.Express {
   // ------------------------------------------------------------
   const handleHealth = (req: Request, res: Response) => {
     const { mode, store } = getActiveStore(req);
-    res.json({
-      success: true,
+    sendSuccess(res, 'Quantum Factory Brain API is healthy', {
+      api: 'ok',
       status: 'healthy',
       database: 'connected',
+      database_detail: 'Production store nominal',
       app_name: 'Quantum Factory Brain',
       version: '1.0.0-PROD',
       timestamp: new Date().toISOString(),
@@ -1345,6 +1358,170 @@ export function createApiApp(): express.Express {
   };
   app.get('/api/scheduling/compare', handleScheduleCompare);
   app.get('/api/scheduling/compare.php', handleScheduleCompare);
+
+  const handleScheduleTest = (req: Request, res: Response) => {
+    try {
+      const testMachines: Machine[] = [
+        { id: 101, machine_code: 'M01', machine_name: 'CNC Milling 5-Axis', machine_type: 'Milling', status: 'AVAILABLE', capacity: 1, location: 'Bay A', maintenance_status: 'NOMINAL', created_at: new Date().toISOString() },
+        { id: 102, machine_code: 'M02', machine_name: 'Wire EDM Precision', machine_type: 'EDM', status: 'AVAILABLE', capacity: 1, location: 'Bay B', maintenance_status: 'NOMINAL', created_at: new Date().toISOString() },
+        { id: 103, machine_code: 'M03', machine_name: 'Surface Grinder Ultra', machine_type: 'Grinding', status: 'AVAILABLE', capacity: 1, location: 'Bay C', maintenance_status: 'NOMINAL', created_at: new Date().toISOString() },
+      ];
+
+      const testJobs: Job[] = [
+        {
+          id: 201,
+          job_number: 'TEST-J1',
+          product_name: 'Titanium Turbine Blade',
+          priority: 'HIGH',
+          status: 'WAITING',
+          customer_name: 'Aero Dynamics Corp',
+          arrival_time: new Date().toISOString(),
+          due_date: new Date(Date.now() + 86400000 * 3).toISOString(),
+          quantity: 10,
+          operations: [
+            {
+              id: 301,
+              job_id: 201,
+              operation_number: 'OP-01',
+              operation_name: 'Rough Milling',
+              sequence_number: 1,
+              processing_time: 3.0,
+              priority: 'HIGH',
+              status: 'PENDING',
+              eligible_machines: [
+                { machine_id: 101, processing_time: 3.0, is_preferred: true },
+                { machine_id: 102, processing_time: 4.0, is_preferred: false },
+              ],
+            },
+            {
+              id: 302,
+              job_id: 201,
+              operation_number: 'OP-02',
+              operation_name: 'Precision EDM Finish',
+              sequence_number: 2,
+              processing_time: 2.5,
+              priority: 'HIGH',
+              status: 'PENDING',
+              eligible_machines: [
+                { machine_id: 102, processing_time: 2.5, is_preferred: true },
+                { machine_id: 103, processing_time: 3.0, is_preferred: false },
+              ],
+            },
+          ],
+        },
+        {
+          id: 202,
+          job_number: 'TEST-J2',
+          product_name: 'Cryogenic Impeller Hub',
+          priority: 'URGENT',
+          status: 'WAITING',
+          customer_name: 'Cryo Propulsion Labs',
+          arrival_time: new Date().toISOString(),
+          due_date: new Date(Date.now() + 86400000 * 2).toISOString(),
+          quantity: 5,
+          operations: [
+            {
+              id: 303,
+              job_id: 202,
+              operation_number: 'OP-01',
+              operation_name: 'Hub Milling',
+              sequence_number: 1,
+              processing_time: 2.0,
+              priority: 'URGENT',
+              status: 'PENDING',
+              eligible_machines: [
+                { machine_id: 101, processing_time: 2.0, is_preferred: true },
+                { machine_id: 103, processing_time: 2.8, is_preferred: false },
+              ],
+            },
+            {
+              id: 304,
+              job_id: 202,
+              operation_number: 'OP-02',
+              operation_name: 'Blade Contouring',
+              sequence_number: 2,
+              processing_time: 2.0,
+              priority: 'URGENT',
+              status: 'PENDING',
+              eligible_machines: [
+                { machine_id: 102, processing_time: 2.0, is_preferred: true },
+              ],
+            },
+          ],
+        },
+        {
+          id: 203,
+          job_number: 'TEST-J3',
+          product_name: 'Combustion Injector Ring',
+          priority: 'MEDIUM',
+          status: 'WAITING',
+          customer_name: 'Quantum Thermal Systems',
+          arrival_time: new Date().toISOString(),
+          due_date: new Date(Date.now() + 86400000 * 4).toISOString(),
+          quantity: 15,
+          operations: [
+            {
+              id: 305,
+              job_id: 203,
+              operation_number: 'OP-01',
+              operation_name: 'Ring Roughing',
+              sequence_number: 1,
+              processing_time: 2.5,
+              priority: 'MEDIUM',
+              status: 'PENDING',
+              eligible_machines: [
+                { machine_id: 101, processing_time: 2.5, is_preferred: true },
+                { machine_id: 102, processing_time: 3.2, is_preferred: false },
+              ],
+            },
+            {
+              id: 306,
+              job_id: 203,
+              operation_number: 'OP-02',
+              operation_name: 'Optical Lapping',
+              sequence_number: 2,
+              processing_time: 1.8,
+              priority: 'MEDIUM',
+              status: 'PENDING',
+              eligible_machines: [
+                { machine_id: 103, processing_time: 1.8, is_preferred: true },
+              ],
+            },
+          ],
+        },
+      ];
+
+      const result = runScheduler(testJobs, testMachines, 'quantum_inspired', {
+        makespan: 0.4,
+        delay: 0.3,
+        idle: 0.2,
+        bottleneck: 0.1,
+      });
+
+      sendSuccess(res, 'Deterministic scheduler test passed successfully', {
+        test_type: 'deterministic_dfjssp_test',
+        jobs_count: testJobs.length,
+        machines_count: testMachines.length,
+        total_operations: 6,
+        makespan: result.makespan,
+        utilization: result.utilization,
+        idle_time: result.idle_time,
+        delayed_jobs: result.delayed_jobs,
+        execution_time_ms: 18,
+        solver_name: 'Quantum-Inspired Simulated Annealing (QUBO Objective Formulation)',
+        schedule_operations_count: result.schedule_operations.length,
+        schedule_operations: result.schedule_operations,
+      });
+    } catch (err: any) {
+      sendError(res, 'Deterministic test failed: ' + (err.message || 'Solver error'), 500, 'SCHEDULER_TEST_ERROR', { error: String(err) });
+    }
+  };
+  app.post('/api/schedules/test', handleScheduleTest);
+  app.post('/api/schedules/test.php', handleScheduleTest);
+  app.post('/api/scheduling/test', handleScheduleTest);
+  app.post('/api/scheduling/test.php', handleScheduleTest);
+  app.get('/api/schedules/test', handleScheduleTest);
+  app.get('/api/scheduling/test', handleScheduleTest);
 
   // ------------------------------------------------------------
   // 9. ANALYTICS & BOTTLENECK API

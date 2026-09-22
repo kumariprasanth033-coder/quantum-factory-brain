@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { Job, JobOperation, Machine } from '../types';
+import { getApiErrorMessage } from '../utils/errorParser';
 import { 
   ArrowLeft, 
   Layers, 
@@ -54,9 +55,11 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
     is_preferred: boolean;
     selected: boolean;
   }[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchDetails = async () => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const [jobData, machineList] = await Promise.all([
         api.getJobDetails(jobId),
@@ -65,7 +68,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
       setJob(jobData);
       setMachines(machineList || []);
     } catch (err: any) {
-      alert('Failed to load job details: ' + err.message);
+      setErrorMessage(getApiErrorMessage(err) || 'Failed to load job details');
     } finally {
       setLoading(false);
     }
@@ -90,7 +93,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
   const handleSaveNewOp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!opName.trim()) {
-      alert('Please specify an operation name');
+      setErrorMessage('Please specify an operation name');
       return;
     }
 
@@ -106,7 +109,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
       setIsAddOpOpen(false);
       await fetchDetails();
     } catch (err: any) {
-      alert('Failed to add operation: ' + err.message);
+      setErrorMessage(getApiErrorMessage(err) || 'Failed to add operation');
     }
   };
 
@@ -135,7 +138,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
       setIsEditOpOpen(false);
       await fetchDetails();
     } catch (err: any) {
-      alert('Failed to update operation: ' + err.message);
+      setErrorMessage(getApiErrorMessage(err) || 'Failed to update operation');
     }
   };
 
@@ -145,7 +148,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
       await api.deleteOperation(opId);
       await fetchDetails();
     } catch (err: any) {
-      alert('Failed to delete operation: ' + err.message);
+      setErrorMessage(getApiErrorMessage(err) || 'Failed to delete operation');
     }
   };
 
@@ -187,7 +190,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
       setIsAssignMachinesOpen(false);
       await fetchDetails();
     } catch (err: any) {
-      alert('Failed to assign machines: ' + err.message);
+      setErrorMessage(getApiErrorMessage(err) || 'Failed to assign machines');
     }
   };
 
@@ -215,6 +218,24 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
 
   return (
     <div className="space-y-6 pb-12">
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs flex items-start justify-between gap-3 shadow-lg">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold text-rose-300 mb-0.5">Operation Notice</div>
+              <div className="text-slate-300 leading-relaxed">{errorMessage}</div>
+            </div>
+          </div>
+          <button 
+            onClick={() => setErrorMessage(null)} 
+            className="text-slate-400 hover:text-white text-xs px-2 py-1 rounded bg-slate-800/60 border border-slate-700/60"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Back button, Title & Quick Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
