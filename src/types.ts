@@ -256,6 +256,59 @@ export interface SystemHealthReport {
   tests: SystemHealthTestResult[];
 }
 
+export interface SchedulerDiagnosticResult {
+  status: 'HEALTHY' | 'WARNING' | 'FAIL' | 'DEGRADED';
+  request_id?: string;
+  timestamp: string;
+  database_connected?: boolean;
+  machines_validation: {
+    status: 'PASS' | 'WARNING' | 'FAIL' | 'PENDING';
+    total_count: number;
+    available_count: number;
+    machines?: Array<{
+      id: number;
+      machine_code: string;
+      machine_name?: string;
+      status: string;
+      is_schedulable: boolean;
+    }>;
+    issues: string[];
+  };
+  jobs_validation: {
+    status: 'PASS' | 'WARNING' | 'FAIL' | 'PENDING';
+    total_count: number;
+    schedulable_count: number;
+    jobs?: Array<{
+      id: number;
+      job_number: string;
+      priority: string;
+      operations_count: number;
+      is_schedulable: boolean;
+      issues: string[];
+    }>;
+    issues: string[];
+  };
+  operations_validation: {
+    status: 'PASS' | 'WARNING' | 'FAIL' | 'PENDING';
+    total_count: number;
+    with_eligible_machines: number;
+    issues: string[];
+  };
+  dry_run_result: {
+    status: 'PASS' | 'FAIL' | 'PENDING';
+    dry_run_success: boolean;
+    execution_time_ms: number;
+    makespan?: number;
+    utilization?: number;
+    operations_scheduled?: number;
+    details?: any;
+    error?: string | null;
+  };
+  errors: string[];
+  warnings: string[];
+  recommendation: string;
+}
+
 export type CsvImportType = 'machines' | 'jobs' | 'operations' | 'eligibility' | 'factory';
 
 export interface CsvPreviewValidationResult {

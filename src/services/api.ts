@@ -12,6 +12,7 @@ import {
   FactoryProfile,
   FactoryMode,
   SystemHealthReport,
+  SchedulerDiagnosticResult,
   CsvImportType,
   CsvPreviewValidationResult,
   CsvImportCommitResult
@@ -363,6 +364,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  // Diagnostic Dry-Run Endpoint (/api/diagnostics/scheduler)
+  getSchedulerDiagnostics: () =>
+    request<SchedulerDiagnosticResult>('/diagnostics/scheduler'),
 
   // Export URLs & Settings Base URLs
   getBaseUrl: () => getApiBaseUrl(),

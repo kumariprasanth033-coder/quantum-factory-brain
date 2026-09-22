@@ -108,6 +108,15 @@ export const SystemHealth: React.FC = () => {
             details: 'QUBO simulated annealing evaluated with non-overlapping precedence constraints.',
           },
           {
+            id: 'scheduling_diagnostics',
+            category: 'SCHEDULING',
+            test_name: 'Scheduler Dry-Run & Resource Diagnostics',
+            endpoint: '/api/diagnostics/scheduler',
+            status: 'PASS',
+            execution_time_ms: 18,
+            details: 'Deep validation of machine availability, operation eligibility matrices, and isolated algorithm dry-run.',
+          },
+          {
             id: 'analytics_kpi',
             category: 'ANALYTICS',
             test_name: 'Real-Time Machine Utilization & Bottlenecks',
@@ -231,6 +240,37 @@ export const SystemHealth: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            id="btn-dryrun-scheduler"
+            onClick={async () => {
+              setSchedulerTestResult({
+                status: 'running',
+                message: 'Calling GET /api/diagnostics/scheduler to validate machines, jobs, and operations dry-run...'
+              });
+              try {
+                const diag = await api.getSchedulerDiagnostics();
+                setSchedulerTestResult({
+                  status: diag.status === 'FAIL' ? 'error' : 'success',
+                  message: `Dry-run diagnostic: ${diag.status} | Machines: ${diag.machines_validation.available_count}/${diag.machines_validation.total_count} avail | Jobs: ${diag.jobs_validation.schedulable_count}/${diag.jobs_validation.total_count} schedulable | Dry-Run Solve: ${diag.dry_run_result.status} (${diag.dry_run_result.execution_time_ms}ms) | Makespan: ${diag.dry_run_result.makespan || diag.dry_run_result.details?.makespan || 0}h`,
+                  details: diag
+                });
+                fetchDiagnostics();
+              } catch (err: any) {
+                setSchedulerTestResult({
+                  status: 'error',
+                  message: `Diagnostic dry-run failed: ${getApiErrorMessage(err)}`,
+                  details: err
+                });
+              }
+            }}
+            disabled={schedulerTestResult.status === 'running'}
+            className="px-3.5 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 font-semibold text-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
+            title="Perform dry-run diagnostic via /api/diagnostics/scheduler"
+          >
+            <ShieldCheck className={`w-3.5 h-3.5 ${schedulerTestResult.status === 'running' ? 'animate-pulse text-indigo-400' : 'text-indigo-300'}`} />
+            <span>Dry-Run Diagnostic</span>
+          </button>
+
           <button
             id="btn-test-scheduler"
             onClick={handleTestScheduler}

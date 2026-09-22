@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
-import { SchedulingMode, Schedule } from '../types';
+import { SchedulingMode, Schedule, SchedulerDiagnosticResult } from '../types';
 import { getApiErrorMessage } from '../utils/errorParser';
 import { 
   CalendarClock, 
@@ -16,7 +16,11 @@ import {
   Sparkles,
   ArrowRight,
   RotateCcw,
-  AlertTriangle
+  AlertTriangle,
+  Activity,
+  CheckCircle,
+  XCircle,
+  X
 } from 'lucide-react';
 
 interface SchedulingProps {
@@ -37,6 +41,11 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
   const [lastResult, setLastResult] = useState<any | null>(null);
   const [undoStatus, setUndoStatus] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Diagnostics Dry-Run State (/api/diagnostics/scheduler)
+  const [isRunningDiagnostics, setIsRunningDiagnostics] = useState<boolean>(false);
+  const [diagnosticsResult, setDiagnosticsResult] = useState<SchedulerDiagnosticResult | null>(null);
+  const [showDiagnosticsModal, setShowDiagnosticsModal] = useState<boolean>(false);
 
   const totalWeight = wMakespan + wDelay + wIdle + wBottleneck;
 
@@ -101,6 +110,20 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
     }
   };
 
+  const handleRunSchedulerDiagnostics = async () => {
+    setIsRunningDiagnostics(true);
+    setErrorMessage(null);
+    try {
+      const res = await api.getSchedulerDiagnostics();
+      setDiagnosticsResult(res);
+      setShowDiagnosticsModal(true);
+    } catch (err: any) {
+      setErrorMessage(getApiErrorMessage(err) || 'Failed to execute scheduler diagnostics');
+    } finally {
+      setIsRunningDiagnostics(false);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
@@ -119,15 +142,28 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
           </p>
         </div>
 
-        <button
-          id="scheduling-undo-btn"
-          onClick={handleUndoSchedule}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-semibold hover:bg-amber-500/30 transition-all self-start sm:self-auto shadow-sm"
-          title="Undo to previous schedule version"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Undo Last Run</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            id="scheduling-diagnostics-btn"
+            onClick={handleRunSchedulerDiagnostics}
+            disabled={isRunningDiagnostics}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/20 text-purple-300 border border-purple-500/40 text-xs font-semibold hover:bg-purple-600/30 transition-all shadow-sm disabled:opacity-50"
+            title="Run isolated dry-run and validation of machines, jobs, and operations"
+          >
+            <Activity className={`w-3.5 h-3.5 ${isRunningDiagnostics ? 'animate-spin text-purple-400' : ''}`} />
+            <span>{isRunningDiagnostics ? 'Running Diagnostics...' : 'Dry-Run Diagnostics'}</span>
+          </button>
+
+          <button
+            id="scheduling-undo-btn"
+            onClick={handleUndoSchedule}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-semibold hover:bg-amber-500/30 transition-all shadow-sm"
+            title="Undo to previous schedule version"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Undo Last Run</span>
+          </button>
+        </div>
       </div>
 
       {undoStatus && (
@@ -430,6 +466,250 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
           </div>
         </div>
       </div>
+
+      {/* Diagnostics Modal */}
+      {showDiagnosticsModal && diagnosticsResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#0b1329] border border-slate-700/80 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-xl border ${
+                  diagnosticsResult.status === 'HEALTHY' 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                    : diagnosticsResult.status === 'WARNING'
+                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                    : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                }`}>
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold text-white tracking-tight">
+                      Scheduler Diagnostics Dry-Run
+                    </h2>
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase ${
+                      diagnosticsResult.status === 'HEALTHY'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : diagnosticsResult.status === 'WARNING'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    }`}>
+                      {diagnosticsResult.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Endpoint: <code className="text-cyan-300 font-mono">/api/diagnostics/scheduler</code> • Dry-run execution across candidate resources
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDiagnosticsModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5 text-xs text-slate-300">
+              {/* Recommendation Banner */}
+              <div className={`p-4 rounded-xl border ${
+                diagnosticsResult.status === 'HEALTHY'
+                  ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'
+                  : diagnosticsResult.status === 'WARNING'
+                  ? 'bg-amber-950/20 border-amber-500/30 text-amber-200'
+                  : 'bg-rose-950/30 border-rose-500/40 text-rose-200'
+              }`}>
+                <div className="font-bold mb-1 flex items-center gap-1.5">
+                  {diagnosticsResult.status === 'HEALTHY' ? <CheckCircle className="w-4 h-4 text-emerald-400" /> : <AlertTriangle className="w-4 h-4 text-amber-400" />}
+                  Diagnostic Finding & Recommendation
+                </div>
+                <div className="text-slate-300 leading-relaxed">
+                  {diagnosticsResult.recommendation}
+                </div>
+              </div>
+
+              {/* 3-Column Validation Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* 1. Machines */}
+                <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs">Machines Fleet</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold font-mono ${
+                      diagnosticsResult.machines_validation.status === 'PASS'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-rose-500/20 text-rose-400'
+                    }`}>
+                      {diagnosticsResult.machines_validation.status}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 space-y-1">
+                    <div>Total Registered: <span className="text-white font-semibold font-mono">{diagnosticsResult.machines_validation.total_count}</span></div>
+                    <div>Available/Idle: <span className="text-cyan-400 font-semibold font-mono">{diagnosticsResult.machines_validation.available_count}</span></div>
+                  </div>
+                  {diagnosticsResult.machines_validation.issues.length > 0 && (
+                    <div className="pt-2 border-t border-slate-800 text-[10px] text-rose-300 space-y-0.5">
+                      {diagnosticsResult.machines_validation.issues.map((iss, idx) => (
+                        <div key={idx} className="flex items-start gap-1">
+                          <XCircle className="w-3 h-3 text-rose-400 shrink-0 mt-0.5" />
+                          <span>{iss}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Jobs */}
+                <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs">Work Orders</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold font-mono ${
+                      diagnosticsResult.jobs_validation.status === 'PASS'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : diagnosticsResult.jobs_validation.status === 'WARNING'
+                        ? 'bg-amber-500/20 text-amber-400'
+                        : 'bg-rose-500/20 text-rose-400'
+                    }`}>
+                      {diagnosticsResult.jobs_validation.status}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 space-y-1">
+                    <div>Total Jobs: <span className="text-white font-semibold font-mono">{diagnosticsResult.jobs_validation.total_count}</span></div>
+                    <div>Schedulable: <span className="text-cyan-400 font-semibold font-mono">{diagnosticsResult.jobs_validation.schedulable_count}</span></div>
+                  </div>
+                  {diagnosticsResult.jobs_validation.issues.length > 0 && (
+                    <div className="pt-2 border-t border-slate-800 text-[10px] text-amber-300 space-y-0.5">
+                      {diagnosticsResult.jobs_validation.issues.map((iss, idx) => (
+                        <div key={idx} className="flex items-start gap-1">
+                          <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
+                          <span>{iss}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Operations & Eligibility */}
+                <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-xs">Routing Eligibility</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold font-mono ${
+                      diagnosticsResult.operations_validation.status === 'PASS'
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-rose-500/20 text-rose-400'
+                    }`}>
+                      {diagnosticsResult.operations_validation.status}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 space-y-1">
+                    <div>Total Operations: <span className="text-white font-semibold font-mono">{diagnosticsResult.operations_validation.total_count}</span></div>
+                    <div>With Eligible Machines: <span className="text-cyan-400 font-semibold font-mono">{diagnosticsResult.operations_validation.with_eligible_machines}</span></div>
+                  </div>
+                  {diagnosticsResult.operations_validation.issues.length > 0 && (
+                    <div className="pt-2 border-t border-slate-800 text-[10px] text-rose-300 space-y-0.5">
+                      {diagnosticsResult.operations_validation.issues.map((iss, idx) => (
+                        <div key={idx} className="flex items-start gap-1">
+                          <XCircle className="w-3 h-3 text-rose-400 shrink-0 mt-0.5" />
+                          <span>{iss}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Dry-Run Execution Metrics */}
+              <div className="p-4 rounded-xl bg-slate-900/40 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-white flex items-center gap-1.5">
+                    <Zap className="w-4 h-4 text-purple-400" />
+                    Isolated Dry-Run Execution Outcome
+                  </span>
+                  <span className="text-slate-400 font-mono text-[11px]">
+                    Latency: <strong className="text-cyan-400">{diagnosticsResult.dry_run_result.execution_time_ms} ms</strong>
+                  </span>
+                </div>
+
+                {diagnosticsResult.dry_run_result.dry_run_success ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                    <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50">
+                      <div className="text-[10px] text-slate-400 uppercase font-mono">Makespan</div>
+                      <div className="text-base font-bold text-cyan-400 font-mono mt-0.5">
+                        {diagnosticsResult.dry_run_result.makespan ?? diagnosticsResult.dry_run_result.details?.makespan ?? 0}h
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50">
+                      <div className="text-[10px] text-slate-400 uppercase font-mono">Utilization</div>
+                      <div className="text-base font-bold text-emerald-400 font-mono mt-0.5">
+                        {diagnosticsResult.dry_run_result.utilization ?? diagnosticsResult.dry_run_result.details?.utilization ?? 0}%
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50">
+                      <div className="text-[10px] text-slate-400 uppercase font-mono">Operations</div>
+                      <div className="text-base font-bold text-purple-300 font-mono mt-0.5">
+                        {diagnosticsResult.dry_run_result.operations_scheduled ?? diagnosticsResult.dry_run_result.details?.operations_scheduled ?? 0}
+                      </div>
+                    </div>
+                    <div className="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50">
+                      <div className="text-[10px] text-slate-400 uppercase font-mono">Algorithm Status</div>
+                      <div className="text-base font-bold text-emerald-300 font-mono mt-0.5">
+                        FEASIBLE
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs">
+                    Failed to compute dry-run schedule: {diagnosticsResult.dry_run_result.error || 'Solver formulation violation'}
+                  </div>
+                )}
+              </div>
+
+              {/* Warnings and Errors details */}
+              {(diagnosticsResult.errors.length > 0 || diagnosticsResult.warnings.length > 0) && (
+                <div className="space-y-2">
+                  <div className="font-bold text-slate-200">Identified Gaps</div>
+                  {diagnosticsResult.errors.map((err, i) => (
+                    <div key={`err-${i}`} className="p-2.5 rounded-lg bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                      <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                      <span>{err}</span>
+                    </div>
+                  ))}
+                  {diagnosticsResult.warnings.map((wrn, i) => (
+                    <div key={`wrn-${i}`} className="p-2.5 rounded-lg bg-amber-950/30 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>{wrn}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-900/40 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500 font-mono">
+                {diagnosticsResult.request_id ? `Req ID: ${diagnosticsResult.request_id}` : ''}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRunSchedulerDiagnostics}
+                  disabled={isRunningDiagnostics}
+                  className="px-3.5 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all"
+                >
+                  <Activity className={`w-3.5 h-3.5 ${isRunningDiagnostics ? 'animate-spin' : ''}`} />
+                  <span>Re-test Diagnostics</span>
+                </button>
+                <button
+                  onClick={() => setShowDiagnosticsModal(false)}
+                  className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
