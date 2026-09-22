@@ -11,9 +11,11 @@ import {
   AlertTriangle, 
   Trash2, 
   Edit, 
-  RefreshCw,
-  X
+  RefreshCw, 
+  X,
+  Upload
 } from 'lucide-react';
+import { CsvImportModal } from '../components/CsvImportModal';
 
 interface MachinesProps {
   onTriggerReoptimize: () => void;
@@ -25,6 +27,7 @@ export const Machines: React.FC<MachinesProps> = ({ onTriggerReoptimize }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
 
   // Form State
@@ -161,14 +164,24 @@ export const Machines: React.FC<MachinesProps> = ({ onTriggerReoptimize }) => {
           </p>
         </div>
 
-        <button
-          id="btn-add-machine"
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-bold transition-all shadow-md shadow-cyan-900/30 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Register New Machine</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            id="btn-import-machines-csv"
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold transition-all"
+          >
+            <Upload className="w-4 h-4 text-cyan-400" />
+            <span>Import CSV</span>
+          </button>
+          <button
+            id="btn-add-machine"
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-bold transition-all shadow-md shadow-cyan-900/30"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Register New Machine</span>
+          </button>
+        </div>
       </div>
 
       {/* Filters & Search Toolbar */}
@@ -426,6 +439,16 @@ export const Machines: React.FC<MachinesProps> = ({ onTriggerReoptimize }) => {
           </div>
         </div>
       )}
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        defaultType="machines"
+        onImportSuccess={() => {
+          fetchMachines();
+        }}
+      />
     </div>
   );
 };

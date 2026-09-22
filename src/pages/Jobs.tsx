@@ -10,10 +10,12 @@ import {
   Edit, 
   Clock, 
   ChevronRight, 
-  RefreshCw,
-  X,
-  AlertTriangle
+  RefreshCw, 
+  X, 
+  AlertTriangle,
+  Upload
 } from 'lucide-react';
+import { CsvImportModal } from '../components/CsvImportModal';
 
 interface JobsProps {
   onSelectJob: (jobId: number) => void;
@@ -27,6 +29,7 @@ export const Jobs: React.FC<JobsProps> = ({ onSelectJob, onTriggerReoptimize }) 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
 
   // Form State
@@ -155,14 +158,24 @@ export const Jobs: React.FC<JobsProps> = ({ onSelectJob, onTriggerReoptimize }) 
           </p>
         </div>
 
-        <button
-          id="btn-create-job-order"
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-purple-950/40 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Job Order</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            id="btn-import-jobs-csv"
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold transition-all"
+          >
+            <Upload className="w-4 h-4 text-purple-400" />
+            <span>Import CSV</span>
+          </button>
+          <button
+            id="btn-create-job-order"
+            onClick={handleOpenAdd}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-purple-950/40"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Job Order</span>
+          </button>
+        </div>
       </div>
 
       {/* Toolbar */}
@@ -431,6 +444,16 @@ export const Jobs: React.FC<JobsProps> = ({ onSelectJob, onTriggerReoptimize }) 
           </div>
         </div>
       )}
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        defaultType="jobs"
+        onImportSuccess={() => {
+          fetchJobs();
+        }}
+      />
     </div>
   );
 };

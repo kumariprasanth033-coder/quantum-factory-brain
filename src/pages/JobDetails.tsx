@@ -17,8 +17,10 @@ import {
   Trash2,
   Sliders,
   X,
-  Check
+  Check,
+  Upload
 } from 'lucide-react';
+import { CsvImportModal } from '../components/CsvImportModal';
 
 interface JobDetailsProps {
   jobId: number;
@@ -30,6 +32,7 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
   const [job, setJob] = useState<Job | null>(null);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Modals state
   const [isAddOpOpen, setIsAddOpOpen] = useState(false);
@@ -238,6 +241,15 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            id="job-import-ops-btn"
+            onClick={() => setIsImportModalOpen(true)}
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
+          >
+            <Upload className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Import CSV</span>
+          </button>
+
           <button
             id="job-add-operation-btn"
             onClick={handleOpenAddOp}
@@ -664,6 +676,16 @@ export const JobDetails: React.FC<JobDetailsProps> = ({ jobId, onBack, onNavigat
           </div>
         </div>
       )}
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        defaultType="operations"
+        onImportSuccess={() => {
+          fetchDetails();
+        }}
+      />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { Navbar } from './components/Navbar';
 import { NavigationBreadcrumbBar } from './components/NavigationBreadcrumbBar';
 import { WhatIfSimulationModal } from './components/WhatIfSimulationModal';
 import { HackathonDemoModal } from './components/HackathonDemoModal';
+import { FactoryChatbot } from './components/FactoryChatbot';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -257,6 +258,15 @@ export default function App() {
           isOpen={isTourOpen}
           onClose={() => setIsTourOpen(false)}
           onNavigateToPage={(page) => handleNavigate(page)}
+        />
+
+        {/* Real-Time Factory-Aware AI Copilot Chatbot */}
+        <FactoryChatbot
+          onTriggerReoptimize={() => handleNavigate('scheduling')}
+          onNavigateToGantt={() => handleNavigate('gantt')}
+          onNavigateToMachines={() => handleNavigate('machines')}
+          onNavigateToJobs={() => handleNavigate('jobs')}
+          onNavigateToAnalytics={() => handleNavigate('analytics')}
         />
       </div>
     </AuthProvider>

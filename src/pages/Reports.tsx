@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { api } from '../services/api';
 import { 
   FileSpreadsheet, 
@@ -8,10 +8,14 @@ import {
   CheckCircle2, 
   Cpu, 
   Layers, 
-  Clock 
+  Clock,
+  Upload
 } from 'lucide-react';
+import { CsvImportModal } from '../components/CsvImportModal';
 
 export const Reports: React.FC = () => {
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
   const handlePrint = () => {
     window.print();
   };
@@ -34,13 +38,24 @@ export const Reports: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={handlePrint}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold self-start sm:self-auto"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Print Summary Report</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            id="reports-import-csv-btn"
+            onClick={() => setIsImportModalOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs font-bold transition-all shadow-md shadow-cyan-900/30"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Import Factory Data (CSV)</span>
+          </button>
+
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Print Summary</span>
+          </button>
+        </div>
       </div>
 
       {/* Export Cards Grid */}
@@ -117,6 +132,16 @@ export const Reports: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        defaultType="machines"
+        onImportSuccess={() => {
+          alert('CSV Data successfully imported into active factory database!');
+        }}
+      />
     </div>
   );
 };

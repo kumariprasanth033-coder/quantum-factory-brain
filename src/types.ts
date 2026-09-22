@@ -229,7 +229,7 @@ export interface SetupChecklist {
 
 export interface SystemHealthTestResult {
   id: string;
-  category: 'AUTHENTICATION' | 'DATABASE' | 'MACHINES' | 'JOBS' | 'SCHEDULING' | 'ANALYTICS' | 'DEPLOYMENT';
+  category: 'AUTHENTICATION' | 'DATABASE' | 'MACHINES' | 'JOBS' | 'SCHEDULING' | 'ANALYTICS' | 'DEPLOYMENT' | 'IMPORT' | 'CHATBOT';
   test_name: string;
   endpoint: string;
   status: 'PASS' | 'FAIL' | 'WARNING';
@@ -250,5 +250,43 @@ export interface SystemHealthReport {
   database_status: string;
   api_version: string;
   tests: SystemHealthTestResult[];
+}
+
+export type CsvImportType = 'machines' | 'jobs' | 'operations' | 'eligibility' | 'factory';
+
+export interface CsvPreviewValidationResult {
+  filename: string;
+  dataType: CsvImportType;
+  totalRows: number;
+  validRowsCount: number;
+  invalidRowsCount: number;
+  previewRows: Array<{
+    rowNumber: number;
+    data: Record<string, string>;
+    isValid: boolean;
+    errors: string[];
+  }>;
+}
+
+export interface CsvImportCommitResult {
+  importedCount: number;
+  message: string;
+  summary: {
+    dataType: CsvImportType;
+    machinesCount: number;
+    jobsCount: number;
+    operationsCount: number;
+  };
+}
+
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'assistant' | 'system';
+  text: string;
+  timestamp: string;
+  suggestedAction?: {
+    type: 'reoptimize' | 'view_gantt' | 'view_machines' | 'view_jobs' | 'view_analytics';
+    label: string;
+  };
 }
 

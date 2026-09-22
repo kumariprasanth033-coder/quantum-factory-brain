@@ -11,7 +11,10 @@ import {
   SchedulingMode,
   FactoryProfile,
   FactoryMode,
-  SystemHealthReport
+  SystemHealthReport,
+  CsvImportType,
+  CsvPreviewValidationResult,
+  CsvImportCommitResult
 } from '../types';
 
 // Same-origin relative /api default
@@ -326,6 +329,25 @@ export const api = {
     request<any>('/demo/seed', { method: 'POST' }),
   resetDemoData: () =>
     request<any>('/demo/reset', { method: 'POST' }),
+
+  // CSV Factory Data Import
+  previewCsvImport: (data: { dataType: CsvImportType; csvContent: string; filename?: string }) =>
+    request<CsvPreviewValidationResult>('/import/preview', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  commitCsvImport: (data: { dataType: CsvImportType; validRows: any[] }) =>
+    request<CsvImportCommitResult>('/import/commit', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  // Real-Time Factory AI Chatbot
+  sendChatMessage: (message: string, history?: any[]) =>
+    request<{ reply: string; suggestedAction?: any; source?: string }>('/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, history }),
+    }),
 
   // Export URLs & Settings Base URLs
   getBaseUrl: () => getApiBaseUrl(),
