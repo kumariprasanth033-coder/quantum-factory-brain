@@ -9,6 +9,9 @@ export interface User {
   email: string;
   role: 'admin' | 'manager' | 'operator';
   status?: string;
+  firebaseUid?: string;
+  photoURL?: string;
+  authProvider?: 'google' | 'password' | 'demo';
 }
 
 export interface Machine {
@@ -279,11 +282,20 @@ export interface CsvImportCommitResult {
   };
 }
 
+export interface GroundingSource {
+  title?: string;
+  uri?: string;
+  sourceType?: 'web' | 'maps';
+}
+
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant' | 'system';
   text: string;
   timestamp: string;
+  modelUsed?: string;
+  groundingMode?: 'factory' | 'search' | 'maps';
+  sources?: GroundingSource[];
   suggestedAction?: {
     type: 'reoptimize' | 'view_gantt' | 'view_machines' | 'view_jobs' | 'view_analytics';
     label: string;

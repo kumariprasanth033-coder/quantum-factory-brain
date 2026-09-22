@@ -203,8 +203,36 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* User Role Switcher Dropdown */}
-        <div className="flex items-center gap-1 border-l border-slate-800 pl-3">
+        {/* User Profile & Role Switcher Dropdown */}
+        <div className="flex items-center gap-2 border-l border-slate-800 pl-3">
+          {user && (
+            <div className="flex items-center gap-2 pr-1">
+              {user.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.name}
+                  referrerPolicy="no-referrer"
+                  className="w-7 h-7 rounded-full border border-cyan-400/50 object-cover"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 flex items-center justify-center text-xs font-bold font-mono">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div className="hidden xl:block text-left text-[11px] leading-tight">
+                <div className="font-semibold text-white truncate max-w-[120px]">{user.name}</div>
+                <div className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                  {user.authProvider === 'google' && (
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      G-Auth
+                    </span>
+                  )}
+                  <span>{user.role}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700 text-[10px] font-medium">
             <button
               onClick={() => demoLogin('manager')}
@@ -235,7 +263,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </div>
 
-          {onNavigateToLogin && (
+          {user && (
+            <button
+              id="navbar-logout-btn"
+              onClick={logout}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 transition-colors"
+              title="Sign out of factory console"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {onNavigateToLogin && !user && (
             <button
               id="navbar-login-btn"
               onClick={onNavigateToLogin}

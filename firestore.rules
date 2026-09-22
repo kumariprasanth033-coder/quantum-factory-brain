@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is accessing their own document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Validation for UserProfile
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             data.email is string &&
+             (data.role == 'admin' || data.role == 'manager' || data.role == 'operator');
+    }
+
+    // User profile documents
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) && isValidUserProfile(request.resource.data);
+
+      // Sub-collections under user: preferences
+      match /preferences/{prefId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Sub-collections under user: snapshots
+      match /snapshots/{snapshotId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+  }
+}

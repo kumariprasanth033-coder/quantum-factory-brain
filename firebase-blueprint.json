@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile identifying authorized factory personnel.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "manager", "operator"] },
+        "factoryId": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "UserFactoryPreference": {
+      "title": "UserFactoryPreference",
+      "description": "Per-user persistent factory preferences, bookmarks, and last-viewed filters.",
+      "type": "object",
+      "properties": {
+        "selectedFactoryId": { "type": "string" },
+        "preferredMode": { "type": "string", "enum": ["classical", "quantum_inspired", "hybrid"] },
+        "theme": { "type": "string" },
+        "notes": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "UserScheduleSnapshot": {
+      "title": "UserScheduleSnapshot",
+      "description": "Saved schedules or simulation runs bookmarked by the user.",
+      "type": "object",
+      "properties": {
+        "snapshotId": { "type": "string" },
+        "version": { "type": "string" },
+        "makespan": { "type": "number" },
+        "utilization": { "type": "number" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["snapshotId", "version", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile with role-based access information."
+    },
+    "/users/{userId}/preferences/{prefId}": {
+      "schema": "UserFactoryPreference",
+      "description": "User specific factory configurations and state."
+    },
+    "/users/{userId}/snapshots/{snapshotId}": {
+      "schema": "UserScheduleSnapshot",
+      "description": "Saved schedule bookmarks and optimization scenarios for this user."
+    }
+  }
+}

@@ -342,11 +342,23 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  // Real-Time Factory AI Chatbot
-  sendChatMessage: (message: string, history?: any[]) =>
-    request<{ reply: string; suggestedAction?: any; source?: string }>('/chat', {
+  // Real-Time Factory AI Chatbot (Multi-turn + Grounding)
+  sendChatMessage: (data: {
+    message: string;
+    history?: any[];
+    groundingMode?: 'factory' | 'search' | 'maps';
+    location?: { latitude: number; longitude: number };
+  }) =>
+    request<{
+      reply: string;
+      suggestedAction?: any;
+      source?: string;
+      modelUsed?: string;
+      groundingMode?: 'factory' | 'search' | 'maps';
+      sources?: Array<{ title?: string; uri?: string; sourceType?: 'web' | 'maps' }>;
+    }>('/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, history }),
+      body: JSON.stringify(data),
     }),
 
   // Export URLs & Settings Base URLs
