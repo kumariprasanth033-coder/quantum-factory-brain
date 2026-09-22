@@ -19,6 +19,20 @@ try {
     $jStmt = $pdo->query("SELECT * FROM jobs WHERE status NOT IN ('COMPLETED', 'CANCELLED') ORDER BY id ASC");
     $jobs = $jStmt->fetchAll();
 
+    if (empty($machines) || empty($jobs)) {
+        Response::error(
+            'Cannot run benchmark: Factory dataset requires at least 1 machine and 1 active job.',
+            400,
+            'INSUFFICIENT_BENCHMARK_DATA',
+            [
+                'machines_found' => count($machines),
+                'jobs_found' => count($jobs),
+                'solution' => 'Load demo factory dataset or create factory floor resources.'
+            ]
+        );
+    }
+
+    $validJobCount = 0;
     foreach ($jobs as &$job) {
         $opStmt = $pdo->prepare('SELECT * FROM job_operations WHERE job_id = :jid ORDER BY sequence_number ASC');
         $opStmt->execute([':jid' => $job['id']]);
@@ -30,6 +44,18 @@ try {
             $op['eligible_machines'] = $emStmt->fetchAll();
         }
         $job['operations'] = $ops;
+        if (!empty($ops)) {
+            $validJobCount++;
+        }
+    }
+
+    if ($validJobCount === 0) {
+        Response::error(
+            'Cannot run benchmark: Jobs have no operations defined.',
+            400,
+            'JOBS_MISSING_OPERATIONS',
+            ['solution' => 'Add operations to existing jobs or load factory demo preset.']
+        );
     }
 
     // Run Classical
@@ -75,5 +101,10 @@ try {
         'disclaimer' => 'Quantum-Inspired mode simulates quantum annealing energy landscape optimization. No claims of actual quantum hardware execution are made.'
     ]);
 } catch (Exception $e) {
-    Response::error('Comparison benchmark error: ' . $e->getMessage(), 500, 'COMPARE_ERROR');
+    Response::error(
+        'Comparison benchmark error: ' . $e->getMessage(),
+        500,
+        'COMPARE_ERROR',
+        ['trace' => $e->getFile() . ':' . $e->getLine()]
+    );
 }

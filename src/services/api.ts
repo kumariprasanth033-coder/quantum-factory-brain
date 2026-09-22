@@ -16,6 +16,9 @@ import {
   CsvPreviewValidationResult,
   CsvImportCommitResult
 } from '../types';
+import { getApiErrorMessage, parseApiError } from '../utils/errorParser';
+
+export { getApiErrorMessage, parseApiError };
 
 // Same-origin relative /api default
 const getApiBaseUrl = (): string => {
@@ -71,8 +74,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     let errorMsg = `HTTP Error ${response.status}`;
     try {
       const errJson = await response.json();
-      if (errJson.message) errorMsg = errJson.message;
-      else if (errJson.error) errorMsg = errJson.error;
+      errorMsg = getApiErrorMessage(errJson);
     } catch {
       errorMsg = response.statusText || errorMsg;
     }
@@ -81,7 +83,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   const json = await response.json();
   if (json.success === false) {
-    throw new Error(json.message || 'API request failed');
+    const errorMsg = getApiErrorMessage(json);
+    throw new Error(errorMsg || 'API request failed');
   }
 
   return json.data !== undefined ? (json.data as T) : (json as unknown as T);

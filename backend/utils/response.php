@@ -6,7 +6,7 @@
 declare(strict_types=1);
 
 class Response {
-    public static function json(bool $success, string $message, mixed $data = null, int $statusCode = 200, ?string $errorCode = null): void {
+    public static function json(bool $success, string $message, mixed $data = null, int $statusCode = 200, ?string $errorCode = null, mixed $details = null): void {
         header('Content-Type: application/json; charset=utf-8');
         header('Access-Control-Allow-Origin: *');
         header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -20,8 +20,13 @@ class Response {
             'data'    => $data,
         ];
 
-        if (!$success && $errorCode) {
-            $payload['error_code'] = $errorCode;
+        if (!$success) {
+            if ($errorCode !== null) {
+                $payload['error_code'] = $errorCode;
+            }
+            if ($details !== null) {
+                $payload['details'] = $details;
+            }
         }
 
         echo json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
@@ -32,8 +37,8 @@ class Response {
         self::json(true, $message, $data, 200);
     }
 
-    public static function error(string $message = 'Error', int $statusCode = 400, ?string $errorCode = null, mixed $data = null): void {
-        self::json(false, $message, $data, $statusCode, $errorCode);
+    public static function error(string $message = 'Error', int $statusCode = 400, ?string $errorCode = null, mixed $details = null, mixed $data = null): void {
+        self::json(false, $message, $data, $statusCode, $errorCode, $details);
     }
 
     public static function getJsonInput(): array {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { ScheduleOperation, Machine, Schedule } from '../types';
+import { getApiErrorMessage } from '../utils/errorParser';
 import { GanttChart } from '../components/GanttChart';
 import { 
   BarChart3, 
@@ -79,7 +80,7 @@ export const GanttPage: React.FC<GanttPageProps> = ({ onOpenWhatIf }) => {
     } catch (err: any) {
       setActionNotice({
         type: 'error',
-        text: 'Failed to load Gantt operations: ' + err.message
+        text: 'Failed to load Gantt operations: ' + getApiErrorMessage(err)
       });
     } finally {
       setLoading(false);
@@ -99,7 +100,7 @@ export const GanttPage: React.FC<GanttPageProps> = ({ onOpenWhatIf }) => {
     } catch (err: any) {
       setActionNotice({
         type: 'error',
-        text: 'Failed to seed demo factory: ' + err.message
+        text: 'Failed to seed demo factory: ' + getApiErrorMessage(err)
       });
     } finally {
       setSeeding(false);
@@ -122,7 +123,7 @@ export const GanttPage: React.FC<GanttPageProps> = ({ onOpenWhatIf }) => {
     } catch (err: any) {
       setActionNotice({
         type: 'error',
-        text: 'Failed to generate schedule: ' + err.message
+        text: 'Failed to generate schedule: ' + getApiErrorMessage(err)
       });
     } finally {
       setSeeding(false);
@@ -142,7 +143,7 @@ export const GanttPage: React.FC<GanttPageProps> = ({ onOpenWhatIf }) => {
     } catch (err: any) {
       setActionNotice({
         type: 'error',
-        text: err.message || 'Cannot undo: Already at baseline schedule version.'
+        text: getApiErrorMessage(err) || 'Cannot undo: Already at baseline schedule version.'
       });
       setTimeout(() => setActionNotice(null), 5000);
     }
@@ -172,7 +173,7 @@ export const GanttPage: React.FC<GanttPageProps> = ({ onOpenWhatIf }) => {
     } catch (err: any) {
       return {
         success: false,
-        message: err.message || 'Validation rejected by scheduling engine.',
+        message: getApiErrorMessage(err) || 'Validation rejected by scheduling engine.',
       };
     }
   };

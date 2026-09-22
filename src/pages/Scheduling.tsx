@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../services/api';
 import { SchedulingMode, Schedule } from '../types';
+import { getApiErrorMessage } from '../utils/errorParser';
 import { 
   CalendarClock, 
   Zap, 
@@ -14,7 +15,8 @@ import {
   Play,
   Sparkles,
   ArrowRight,
-  RotateCcw
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
 
 interface SchedulingProps {
@@ -34,6 +36,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [lastResult, setLastResult] = useState<any | null>(null);
   const [undoStatus, setUndoStatus] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const totalWeight = wMakespan + wDelay + wIdle + wBottleneck;
 
@@ -41,6 +44,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
     setIsGenerating(true);
     setLastResult(null);
     setUndoStatus(null);
+    setErrorMessage(null);
     try {
       const weightsObj = {
         makespan: wMakespan / 100,
@@ -52,7 +56,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
       setLastResult(result);
       onScheduleGenerated(result);
     } catch (err: any) {
-      alert('Scheduling engine failed: ' + err.message);
+      setErrorMessage(getApiErrorMessage(err) || 'Scheduling engine failed');
     } finally {
       setIsGenerating(false);
     }
@@ -61,17 +65,19 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
   const handleDynamicReoptimize = async () => {
     setIsGenerating(true);
     setUndoStatus(null);
+    setErrorMessage(null);
     try {
       const result = await api.reoptimizeSchedule(mode, 'Floor Constraint Adjustment');
       setLastResult(result);
     } catch (err: any) {
-      alert('Re-optimization failed: ' + err.message);
+      setErrorMessage(getApiErrorMessage(err) || 'Re-optimization failed');
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleUndoSchedule = async () => {
+    setErrorMessage(null);
     try {
       const prev = await api.undoSchedule();
       setLastResult(prev);
@@ -79,7 +85,7 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
       setUndoStatus(`Undo applied: Reverted to schedule ${prev.version} (Makespan: ${prev.makespan}h)`);
       setTimeout(() => setUndoStatus(null), 5000);
     } catch (err: any) {
-      alert(err.message || 'No previous schedule version available to undo to.');
+      setErrorMessage(getApiErrorMessage(err) || 'No previous schedule version available to undo to.');
     }
   };
 
@@ -119,6 +125,24 @@ export const Scheduling: React.FC<SchedulingProps> = ({ onScheduleGenerated, onN
             <span>{undoStatus}</span>
           </div>
           <button onClick={() => setUndoStatus(null)} className="text-amber-400 hover:text-white text-xs">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs flex items-start justify-between gap-3 shadow-lg">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold text-rose-300 mb-0.5">Scheduling Engine Notice</div>
+              <div className="text-slate-300 leading-relaxed">{errorMessage}</div>
+            </div>
+          </div>
+          <button 
+            onClick={() => setErrorMessage(null)} 
+            className="text-slate-400 hover:text-white text-xs px-2 py-1 rounded bg-slate-800/60 border border-slate-700/60"
+          >
             Dismiss
           </button>
         </div>

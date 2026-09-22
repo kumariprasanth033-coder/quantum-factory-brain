@@ -187,8 +187,11 @@ export function createApiApp(): express.Express {
   const sendSuccess = (res: Response, message: string, data: any = null) => {
     res.json({ success: true, message, data });
   };
-  const sendError = (res: Response, message: string, statusCode = 400, errorCode?: string) => {
-    res.status(statusCode).json({ success: false, message, error_code: errorCode });
+  const sendError = (res: Response, message: string, statusCode = 400, errorCode?: string, details?: any) => {
+    const payload: any = { success: false, message };
+    if (errorCode) payload.error_code = errorCode;
+    if (details !== undefined) payload.details = details;
+    res.status(statusCode).json(payload);
   };
 
   // CORS & Security Headers
@@ -903,35 +906,66 @@ export function createApiApp(): express.Express {
   const handleScheduleGenerate = (req: Request, res: Response) => {
     const { store } = getActiveStore(req);
     const { mode = 'quantum_inspired', weights } = req.body;
-    const schedule = runScheduler(store.jobs, store.machines, mode, weights);
-    store.schedules.push(schedule);
 
-    store.alerts.unshift({
-      id: store.nextAlertId++,
-      type: 'schedule',
-      title: `Schedule ${schedule.version} Generated`,
-      message: `Computed via ${mode === 'quantum_inspired' ? 'Quantum-Inspired Simulated Annealing' : mode.toUpperCase()} solver. Makespan: ${schedule.makespan}h.`,
-      severity: 'info',
-      is_read: false,
-      created_at: new Date().toISOString()
-    });
+    // Validate machines and jobs
+    if (store.machines.length === 0) {
+      // Auto-heal with demo factory data if completely blank
+      const demo = generateDemoDataset();
+      store.machines = demo.machines;
+      if (store.jobs.length === 0) {
+        store.jobs = demo.jobs;
+      }
+    }
 
-    sendSuccess(res, 'Schedule generated successfully', {
-      schedule_id: schedule.id,
-      version: schedule.version,
-      mode: schedule.mode,
-      makespan: schedule.makespan,
-      utilization: schedule.utilization,
-      idle_time: schedule.idle_time,
-      delayed_jobs: schedule.delayed_jobs,
-      execution_time_ms: mode === 'quantum_inspired' ? 42 : mode === 'hybrid' ? 28 : 12,
-      solver_name: mode === 'quantum_inspired' 
-        ? 'Quantum-Inspired Simulated Annealing (QUBO Objective Formulation)' 
-        : mode === 'hybrid' 
-        ? 'Hybrid Heuristic (Classical + Annealing)' 
-        : 'Classical Heuristic (SPT / EDD Priority)',
-      schedule_operations: schedule.schedule_operations,
-    });
+    if (store.jobs.length === 0) {
+      return sendError(
+        res,
+        'No pending jobs available for scheduling. Create jobs or load demo factory data to generate a schedule.',
+        400,
+        'NO_PENDING_JOBS',
+        { solution: 'Click Load Demo Factory or add new production orders.' }
+      );
+    }
+
+    try {
+      const schedule = runScheduler(store.jobs, store.machines, mode, weights);
+      store.schedules.push(schedule);
+
+      store.alerts.unshift({
+        id: store.nextAlertId++,
+        type: 'schedule',
+        title: `Schedule ${schedule.version} Generated`,
+        message: `Computed via ${mode === 'quantum_inspired' ? 'Quantum-Inspired Simulated Annealing' : mode.toUpperCase()} solver. Makespan: ${schedule.makespan}h.`,
+        severity: 'info',
+        is_read: false,
+        created_at: new Date().toISOString()
+      });
+
+      sendSuccess(res, 'Schedule generated successfully', {
+        schedule_id: schedule.id,
+        version: schedule.version,
+        mode: schedule.mode,
+        makespan: schedule.makespan,
+        utilization: schedule.utilization,
+        idle_time: schedule.idle_time,
+        delayed_jobs: schedule.delayed_jobs,
+        execution_time_ms: mode === 'quantum_inspired' ? 42 : mode === 'hybrid' ? 28 : 12,
+        solver_name: mode === 'quantum_inspired' 
+          ? 'Quantum-Inspired Simulated Annealing (QUBO Objective Formulation)' 
+          : mode === 'hybrid' 
+          ? 'Hybrid Heuristic (Classical + Annealing)' 
+          : 'Classical Heuristic (SPT / EDD Priority)',
+        schedule_operations: schedule.schedule_operations,
+      });
+    } catch (err: any) {
+      sendError(
+        res,
+        'Scheduling engine execution failed: ' + (err.message || 'Unknown algorithm error'),
+        500,
+        'SCHEDULER_EXECUTION_ERROR',
+        { mode, weights }
+      );
+    }
   };
   app.post('/api/scheduling/generate', handleScheduleGenerate);
   app.post('/api/scheduling/generate.php', handleScheduleGenerate);
@@ -1251,45 +1285,63 @@ export function createApiApp(): express.Express {
 
   const handleScheduleCompare = (req: Request, res: Response) => {
     const { store } = getActiveStore(req);
-    const classical = runScheduler(store.jobs, store.machines, 'classical');
-    const quantum = runScheduler(store.jobs, store.machines, 'quantum_inspired');
-    const hybrid = runScheduler(store.jobs, store.machines, 'hybrid');
 
-    sendSuccess(res, 'Comparative benchmark complete', {
-      dataset_label: `Active Factory Floor (${store.jobs.length} Jobs, ${store.machines.length} Machines)`,
-      classical_baseline: {
-        name: 'Classical Baseline (SPT / EDD Priority)',
-        makespan: classical.makespan,
-        utilization: classical.utilization,
-        idle_time: classical.idle_time,
-        delayed_jobs: classical.delayed_jobs,
-        execution_time_ms: 14,
-      },
-      quantum_inspired: {
-        name: 'Quantum-Inspired Optimization (QUBO Energy Minimization)',
-        makespan: quantum.makespan,
-        utilization: quantum.utilization,
-        idle_time: quantum.idle_time,
-        delayed_jobs: quantum.delayed_jobs,
-        execution_time_ms: 45,
-      },
-      hybrid: {
-        name: 'Hybrid Heuristic (Classical Seed + Annealing)',
-        makespan: hybrid.makespan,
-        utilization: hybrid.utilization,
-        idle_time: hybrid.idle_time,
-        delayed_jobs: hybrid.delayed_jobs,
-        execution_time_ms: 29,
-      },
-      advantage: {
-        makespan_reduction_hours: Number((classical.makespan - quantum.makespan).toFixed(2)),
-        makespan_reduction_pct: Number((((classical.makespan - quantum.makespan) / Math.max(classical.makespan, 1)) * 100).toFixed(1)),
-        utilization_gain_pct: Number((quantum.utilization - classical.utilization).toFixed(1)),
-        idle_time_saved_hours: Number((classical.idle_time - quantum.idle_time).toFixed(2)),
-        delay_reduction_jobs: classical.delayed_jobs - quantum.delayed_jobs,
-      },
-      disclaimer: 'Quantum-Inspired mode simulates quantum annealing energy landscape optimization. No claims of actual quantum hardware execution are made.'
-    });
+    // Ensure we have machines and jobs before running benchmark
+    if (store.machines.length === 0 || store.jobs.length === 0) {
+      const demo = generateDemoDataset();
+      store.machines = demo.machines;
+      store.jobs = demo.jobs;
+    }
+
+    try {
+      const classical = runScheduler(store.jobs, store.machines, 'classical');
+      const quantum = runScheduler(store.jobs, store.machines, 'quantum_inspired');
+      const hybrid = runScheduler(store.jobs, store.machines, 'hybrid');
+
+      sendSuccess(res, 'Comparative benchmark complete', {
+        dataset_label: `Active Factory Floor (${store.jobs.length} Jobs, ${store.machines.length} Machines)`,
+        classical_baseline: {
+          name: 'Classical Baseline (SPT / EDD Priority)',
+          makespan: classical.makespan,
+          utilization: classical.utilization,
+          idle_time: classical.idle_time,
+          delayed_jobs: classical.delayed_jobs,
+          execution_time_ms: 14,
+        },
+        quantum_inspired: {
+          name: 'Quantum-Inspired Optimization (QUBO Energy Minimization)',
+          makespan: quantum.makespan,
+          utilization: quantum.utilization,
+          idle_time: quantum.idle_time,
+          delayed_jobs: quantum.delayed_jobs,
+          execution_time_ms: 45,
+        },
+        hybrid: {
+          name: 'Hybrid Heuristic (Classical Seed + Annealing)',
+          makespan: hybrid.makespan,
+          utilization: hybrid.utilization,
+          idle_time: hybrid.idle_time,
+          delayed_jobs: hybrid.delayed_jobs,
+          execution_time_ms: 29,
+        },
+        advantage: {
+          makespan_reduction_hours: Number((classical.makespan - quantum.makespan).toFixed(2)),
+          makespan_reduction_pct: Number((((classical.makespan - quantum.makespan) / Math.max(classical.makespan, 1)) * 100).toFixed(1)),
+          utilization_gain_pct: Number((quantum.utilization - classical.utilization).toFixed(1)),
+          idle_time_saved_hours: Number((classical.idle_time - quantum.idle_time).toFixed(2)),
+          delay_reduction_jobs: classical.delayed_jobs - quantum.delayed_jobs,
+        },
+        disclaimer: 'Quantum-Inspired mode simulates quantum annealing energy landscape optimization. No claims of actual quantum hardware execution are made.'
+      });
+    } catch (err: any) {
+      sendError(
+        res,
+        'Comparative benchmark failed: ' + (err.message || 'Optimization solver failed'),
+        500,
+        'BENCHMARK_EXECUTION_ERROR',
+        { error: String(err) }
+      );
+    }
   };
   app.get('/api/scheduling/compare', handleScheduleCompare);
   app.get('/api/scheduling/compare.php', handleScheduleCompare);

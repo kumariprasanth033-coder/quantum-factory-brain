@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { ScheduleComparisonResult } from '../types';
+import { getApiErrorMessage } from '../utils/errorParser';
 import { Zap, Clock, TrendingUp, ShieldAlert, Cpu, CheckCircle2, ArrowRight, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export const ScheduleComparison: React.FC = () => {
@@ -15,7 +16,7 @@ export const ScheduleComparison: React.FC = () => {
       const result = await api.compareSchedulers();
       setData(result);
     } catch (err: any) {
-      setError(err.message || 'Failed to benchmark schedulers');
+      setError(getApiErrorMessage(err) || 'Failed to benchmark schedulers');
     } finally {
       setLoading(false);
     }
